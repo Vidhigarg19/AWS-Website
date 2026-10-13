@@ -175,6 +175,7 @@ export default function AdminPage() {
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkDragActive, setBulkDragActive] = useState(false);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkImportMode, setBulkImportMode] = useState<"append" | "overwrite">("append");
 
   // ── Custom Confirmation Modal State ───────────────────────
   const [confirmModal, setConfirmModal] = useState<{
@@ -868,47 +869,80 @@ export default function AdminPage() {
       return;
     }
 
-    setBulkImporting(true);
-    toast.loading(`Importing ${bulkImportRows.length} members…`, { id: "bulk-import" });
+    const targetBatch = bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27");
+    const existingCount = teamMembers.filter((m) => (m.batch || "2026-27") === targetBatch).length;
 
-    try {
-      const targetBatch = selectedTeamBatch || "2026-27";
-      // Strip internal _rowIndex before sending
-      const members = bulkImportRows.map(({ _rowIndex, ...rest }) => ({
-        ...rest,
-        batch: rest.batch || targetBatch,
-      }));
-
-      const res = await fetch("/api/admin/team-members/bulk-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ members, batch: targetBatch }),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        const serverErrors = Array.isArray(data.data) ? data.data : [data.error];
-        setBulkImportErrors(serverErrors);
-        toast.error(data.error || "Import failed.", { id: "bulk-import" });
-        return;
-      }
-
-      toast.success(
-        `✓ Imported ${data.data?.length ?? bulkImportRows.length} team members successfully!`,
-        { id: "bulk-import", duration: 5000 }
+    const executeImport = async () => {
+      setBulkImporting(true);
+      toast.loading(
+        bulkImportMode === "overwrite"
+          ? `Overwriting & importing ${bulkImportRows.length} members…`
+          : `Importing ${bulkImportRows.length} members…`,
+        { id: "bulk-import" }
       );
-      setShowBulkImport(false);
-      setBulkImportRows([]);
-      setBulkImportErrors([]);
-      setBulkImportFileName("");
-      if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
-      await fetchTeamMembers();
-    } catch (err: any) {
-      toast.error(err.message || "Import request failed.", { id: "bulk-import" });
-    } finally {
-      setBulkImporting(false);
+
+      try {
+        // Strip internal _rowIndex before sending
+        const members = bulkImportRows.map(({ _rowIndex, ...rest }) => ({
+          ...rest,
+          batch: rest.batch || targetBatch,
+        }));
+
+        const res = await fetch("/api/admin/team-members/bulk-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            members,
+            batch: targetBatch,
+            mode: bulkImportMode,
+            overwriteScope: "batch",
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          const serverErrors = Array.isArray(data.data) ? data.data : [data.error];
+          setBulkImportErrors(serverErrors);
+          toast.error(data.error || "Import failed.", { id: "bulk-import" });
+          return;
+        }
+
+        toast.success(
+          bulkImportMode === "overwrite"
+            ? `✓ Overwritten and imported ${data.data?.length ?? bulkImportRows.length} members into Batch ${targetBatch}!`
+            : `✓ Added ${data.data?.length ?? bulkImportRows.length} team members successfully!`,
+          { id: "bulk-import", duration: 5000 }
+        );
+        setShowBulkImport(false);
+        setBulkImportRows([]);
+        setBulkImportErrors([]);
+        setBulkImportFileName("");
+        setBulkImportMode("append");
+        if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
+        await fetchTeamMembers();
+      } catch (err: any) {
+        toast.error(err.message || "Import request failed.", { id: "bulk-import" });
+      } finally {
+        setBulkImporting(false);
+      }
+    };
+
+    if (bulkImportMode === "overwrite") {
+      showConfirm({
+        title: `Overwrite Batch ${targetBatch} Data?`,
+        message: `Are you sure you want to overwrite all members in Batch "${targetBatch}"?\n\nThis will permanently delete ${existingCount} existing member(s) and replace them with ${bulkImportRows.length} member(s) from "${bulkImportFileName || "uploaded file"}".\n\nThis action cannot be undone.`,
+        confirmLabel: "Yes, Overwrite & Import",
+        cancelLabel: "Cancel",
+        variant: "danger",
+        onConfirm: async () => {
+          await executeImport();
+        },
+      });
+      return;
     }
+
+    await executeImport();
   };
 
   // Unique available batches from team members and custom created batches
@@ -2046,6 +2080,7 @@ export default function AdminPage() {
                                 setBulkImportRows([]);
                                 setBulkImportErrors([]);
                                 setBulkImportFileName("");
+                                setBulkImportMode("append");
                                 setShowBulkImport(true);
                               }}
                               className="h-9 px-3.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
@@ -2078,6 +2113,7 @@ export default function AdminPage() {
                                   setBulkImportRows([]);
                                   setBulkImportErrors([]);
                                   setBulkImportFileName("");
+                                  setBulkImportMode("append");
                                   setShowBulkImport(true);
                                 }}
                                 className="h-8.5 px-3.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
@@ -2881,23 +2917,116 @@ export default function AdminPage() {
                   </div>
                   <p className="text-[11px] text-[#52525B]">
                     Column names are flexible — e.g. "Full Name", "Department", "Position", "Photo" are all recognised automatically.
-                    Members without a batch column in your spreadsheet will automatically be assigned to Batch {selectedTeamBatch || "2026-27"}.
+                    Members without a batch column in your spreadsheet will automatically be assigned to Batch {bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27")}.
                   </p>
                 </div>
 
-                {/* Automatically fetched currently selected batch */}
+                {/* Target Batch Information */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#14141C] border border-white/[0.06]">
                   <div className="flex items-center gap-2.5">
                     <span className="text-xs font-mono uppercase tracking-wider text-[#71717A]">
                       Target Batch:
                     </span>
                     <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
-                      Batch {selectedTeamBatch || "2026-27"}
+                      Batch {bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27")}
                     </span>
                   </div>
                   <span className="text-[11px] text-[#71717A] font-mono">
-                    (Auto-assigned from active cohort)
+                    ({teamMembers.filter((m) => (m.batch || "2026-27") === (bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27"))).length} current member{teamMembers.filter((m) => (m.batch || "2026-27") === (bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27"))).length !== 1 ? "s" : ""})
                   </span>
+                </div>
+
+                {/* Import Strategy: Append vs Overwrite Options */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-mono uppercase tracking-wider text-[#A1A1AA]">
+                      Import Method
+                    </label>
+                    <span className="text-[11px] text-[#71717A] font-mono">
+                      Choose how to apply spreadsheet rows
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Add to Existing Data */}
+                    <button
+                      type="button"
+                      onClick={() => setBulkImportMode("append")}
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        bulkImportMode === "append"
+                          ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30"
+                          : "bg-[#14141C] border-white/[0.06] hover:border-white/15 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                            bulkImportMode === "append" ? "bg-emerald-500/20 text-emerald-300" : "bg-white/[0.05] text-[#71717A]"
+                          }`}>
+                            <UserPlus className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-semibold text-white block">Add to Existing</span>
+                            <span className="text-[10px] font-mono text-emerald-400">Append data</span>
+                          </div>
+                        </div>
+                        <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          bulkImportMode === "append" ? "border-emerald-400 bg-emerald-400" : "border-white/20"
+                        }`}>
+                          {bulkImportMode === "append" && <span className="w-1.5 h-1.5 rounded-full bg-[#0D0D14]" />}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#A1A1AA] leading-relaxed">
+                        Keep all current members and append new members from this sheet alongside them.
+                      </p>
+                    </button>
+
+                    {/* Option 2: Overwrite Current Data */}
+                    <button
+                      type="button"
+                      onClick={() => setBulkImportMode("overwrite")}
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        bulkImportMode === "overwrite"
+                          ? "bg-rose-500/10 border-rose-500/40 shadow-lg shadow-rose-500/10 ring-1 ring-rose-500/30"
+                          : "bg-[#14141C] border-white/[0.06] hover:border-white/15 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                            bulkImportMode === "overwrite" ? "bg-rose-500/20 text-rose-300" : "bg-white/[0.05] text-[#71717A]"
+                          }`}>
+                            <RefreshCw className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-semibold text-white block">Overwrite Current Data</span>
+                            <span className="text-[10px] font-mono text-rose-400">Replace cohort</span>
+                          </div>
+                        </div>
+                        <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          bulkImportMode === "overwrite" ? "border-rose-400 bg-rose-400" : "border-white/20"
+                        }`}>
+                          {bulkImportMode === "overwrite" && <span className="w-1.5 h-1.5 rounded-full bg-[#0D0D14]" />}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#A1A1AA] leading-relaxed">
+                        Clear existing members in this batch and replace them completely with the spreadsheet data.
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* Overwrite Warning Banner */}
+                  {bulkImportMode === "overwrite" && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <div className="text-[11.5px] text-rose-200/90 leading-relaxed flex-1">
+                        <span className="font-semibold text-rose-300">Caution:</span> All current members in{" "}
+                        <span className="font-mono font-bold text-white bg-rose-500/20 px-1.5 py-0.5 rounded">
+                          Batch {bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27")}
+                        </span>{" "}
+                        ({teamMembers.filter((m) => (m.batch || "2026-27") === (bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27"))).length} member{teamMembers.filter((m) => (m.batch || "2026-27") === (bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27"))).length !== 1 ? "s" : ""}) will be permanently deleted and replaced with this file.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
 
@@ -3033,7 +3162,7 @@ export default function AdminPage() {
                   onClick={(e) => {
                     // Generate a template in-browser instead of fetching a file
                     e.preventDefault();
-                    const targetBatch = selectedTeamBatch || "2026-27";
+                    const targetBatch = bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27");
                     const ws = XLSX.utils.aoa_to_sheet([
                       ["name", "course", "branch", "year", "role", "batch", "pic_url"],
                       ["Rahul Sharma", "B.Tech", "CSE", "3rd Year", "Tech Lead", targetBatch, ""],
@@ -3065,18 +3194,29 @@ export default function AdminPage() {
                       bulkImportRows.length === 0 ||
                       bulkImportErrors.length > 0
                     }
-                    className="h-10 px-5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                    className={`h-10 px-5 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 ${
+                      bulkImportMode === "overwrite"
+                        ? "bg-gradient-to-r from-rose-500 to-amber-500 hover:brightness-110 shadow-lg shadow-rose-500/20"
+                        : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 shadow-lg shadow-emerald-500/20"
+                    }`}
                   >
                     {bulkImporting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Importing…</span>
+                        <span>{bulkImportMode === "overwrite" ? "Overwriting…" : "Importing…"}</span>
+                      </>
+                    ) : bulkImportMode === "overwrite" ? (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>
+                          Overwrite & Import {bulkImportRows.length > 0 ? `(${bulkImportRows.length})` : ""}
+                        </span>
                       </>
                     ) : (
                       <>
                         <Upload className="w-4 h-4" />
                         <span>
-                          Import {bulkImportRows.length > 0 ? `${bulkImportRows.length} Members` : "Members"}
+                          Add to Existing {bulkImportRows.length > 0 ? `(${bulkImportRows.length})` : ""}
                         </span>
                       </>
                     )}

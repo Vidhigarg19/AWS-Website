@@ -5,18 +5,41 @@ import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Calendar, Clock, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+/** Raw row shape returned by GET /api/events */
+type DbRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  event_date: string;
+  event_timing: string;
+  speaker_name: string | null;
+  attendance_open: boolean;
+};
+
+/** Mapped UI shape */
+type UiEvent = {
+  title: string;
+  date: string;
+  location: string;
+  description: string;
+};
+
+/** Formats YYYY-MM-DD → human-readable date */
+function formatDisplayDate(iso: string): string {
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export default function UpcomingEventCard() {
-  const [event, setEvent] = React.useState<null | {
-    title: string;
-    date: string;
-    isoDate: string;
-    location: string;
-    description: string;
-    status: string;
-    id: string;
-  }>(null);
+  const [event, setEvent] = React.useState<UiEvent | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -25,10 +48,27 @@ export default function UpcomingEventCard() {
         const res = await fetch("/api/events", { cache: "no-store" });
         const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json.error || "Failed to load events");
-        const events = json.data as Array<any>;
-        // Find first non‑past event (current or upcoming)
-        const upcoming = events.find((e) => e.status !== "past");
-        if (upcoming) setEvent(upcoming);
+
+        const rows = json.data as DbRow[];
+
+        // Find first non-past event (same logic as the Events page)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcoming = rows.find(
+          (row) => new Date(row.event_date + "T00:00:00") >= today
+        );
+
+        if (upcoming) {
+          setEvent({
+            title: upcoming.name,
+            date: formatDisplayDate(upcoming.event_date),
+            location: upcoming.speaker_name
+              ? `Speaker: ${upcoming.speaker_name}`
+              : "",
+            description: upcoming.description ?? "",
+          });
+        }
       } catch (e: any) {
         toast.error(e.message || "Could not fetch upcoming event");
       } finally {

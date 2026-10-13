@@ -8,8 +8,6 @@ import {
   GraduationCap,
   Calendar,
   Sparkles,
-  ExternalLink,
-  ChevronRight,
 } from "lucide-react";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
 import type { DbTeamMember } from "@/types/certificate";
@@ -34,7 +32,6 @@ export function TeamMembersDirectory() {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setMembers(json.data);
-          // If 2026-27 exists, default to it, otherwise take first available batch
           const batches = Array.from(
             new Set(json.data.map((m: DbTeamMember) => m.batch || "2026-27"))
           ).sort((a: any, b: any) => b.localeCompare(a));
@@ -66,18 +63,18 @@ export function TeamMembersDirectory() {
     return members.filter((m) => (m.batch || "2026-27") === activeBatch);
   }, [members, activeBatch]);
 
-  // Don't render the section if still loading and no members, or if DB is empty and user has not added any members
+  // If load finished and absolutely no team members in DB, don't show empty ghost block
   if (!loading && members.length === 0) {
     return null;
   }
 
   return (
-    <section className="relative py-16 sm:py-24 px-3.5 sm:px-6 lg:px-8 max-w-content mx-auto">
-      {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-36 bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none z-0" />
+    <section className="relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-content mx-auto">
+      {/* Ambient Radial Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-48 bg-cyan-500/10 blur-[110px] rounded-full pointer-events-none z-0" />
 
       {/* Section Header */}
-      <div className="relative max-w-3xl mx-auto text-center mb-10 sm:mb-14">
+      <div className="relative max-w-2xl mx-auto text-center mb-10 sm:mb-12">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-mono mb-3">
           <Sparkles className="w-3 h-3 text-cyan-400" />
           <span>Student Builder Roster</span>
@@ -89,14 +86,14 @@ export function TeamMembersDirectory() {
             Directory.
           </PixelHeading>
         </h2>
-        <p className="text-xs sm:text-sm text-text-secondary mt-2 max-w-md mx-auto">
+        <p className="text-xs sm:text-sm text-text-secondary mt-2 max-w-md mx-auto leading-relaxed">
           Meet the student architects and core builders driving our cloud community
         </p>
       </div>
 
-      {/* Batch Navigation Separator / Tabs */}
-      <div className="relative z-10 flex flex-col items-center gap-4 mb-10">
-        <div className="p-1 rounded-2xl bg-[#0F0F16] border border-white/[0.08] flex items-center gap-1.5 overflow-x-auto max-w-full shadow-lg">
+      {/* Batch Navigation Tabs */}
+      <div className="relative z-10 flex flex-col items-center gap-3.5 mb-10">
+        <div className="p-1 rounded-2xl bg-[#0F0F16] border border-white/[0.08] flex items-center gap-1.5 overflow-x-auto max-w-full shadow-lg no-scrollbar">
           {availableBatches.map((batch) => {
             const isSelected = activeBatch === batch;
             const isCurrent = batch === "2026-27";
@@ -106,7 +103,7 @@ export function TeamMembersDirectory() {
               <button
                 key={batch}
                 onClick={() => setActiveBatch(batch)}
-                className={`px-4 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
                   isSelected
                     ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold shadow-md shadow-cyan-500/25 scale-[1.02]"
                     : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]"
@@ -153,7 +150,30 @@ export function TeamMembersDirectory() {
       </div>
 
       {/* Grid of Team Members */}
-      {currentBatchMembers.length === 0 ? (
+      {loading ? (
+        /* Skeletal Loader for smooth perceptual performance */
+        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="p-4 sm:p-5 rounded-2xl bg-[#0D0D14]/70 border border-white/[0.05] animate-pulse flex flex-col justify-between space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-xl bg-white/[0.06]" />
+                <div className="w-16 h-4 rounded-md bg-white/[0.04]" />
+              </div>
+              <div className="space-y-2">
+                <div className="w-3/4 h-4 rounded bg-white/[0.07]" />
+                <div className="w-1/2 h-3.5 rounded bg-white/[0.04]" />
+              </div>
+              <div className="pt-3 border-t border-white/[0.04] space-y-1.5">
+                <div className="w-4/5 h-3 rounded bg-white/[0.04]" />
+                <div className="w-1/3 h-3 rounded bg-white/[0.03]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : currentBatchMembers.length === 0 ? (
         <div className="relative z-10 max-w-md mx-auto p-8 rounded-2xl bg-[#0D0D14] border border-white/[0.08] text-center space-y-2">
           <Users className="w-8 h-8 mx-auto text-[#52525B]" />
           <h4 className="text-sm font-semibold text-white">Batch {activeBatch} Details Coming Soon</h4>
@@ -162,20 +182,19 @@ export function TeamMembersDirectory() {
           </p>
         </div>
       ) : (
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
           {currentBatchMembers.map((member) => (
             <div
               key={member.id}
-              className="group relative p-5 rounded-2xl bg-[#0D0D14] border border-white/[0.06] hover:border-cyan-500/30 transition-all duration-300 flex flex-col justify-between hover:shadow-xl hover:shadow-cyan-500/5 hover:-translate-y-1"
+              className="group relative p-4 sm:p-4.5 rounded-2xl bg-[#0D0D14] border border-white/[0.06] hover:border-cyan-500/30 transition-all duration-300 flex flex-col justify-between hover:shadow-xl hover:shadow-cyan-500/5 hover:-translate-y-1"
             >
               {/* Top Accent Gradient line on hover */}
-              <div className="absolute top-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-cyan-500/0 group-hover:via-cyan-500/50 to-transparent transition-all duration-300" />
+              <div className="absolute top-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="space-y-4">
-                {/* Header Profile Row */}
-                <div className="flex items-start gap-3.5">
-                  {/* Photo / Avatar */}
-                  <div className="w-13 h-13 rounded-xl overflow-hidden border border-white/[0.1] bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 flex items-center justify-center shrink-0 group-hover:border-cyan-500/40 transition-colors">
+              <div>
+                {/* Header Row: Avatar */}
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/[0.1] bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 flex items-center justify-center shrink-0 group-hover:border-cyan-500/40 transition-colors">
                     {member.pic_url ? (
                       <img
                         src={member.pic_url}
@@ -188,47 +207,47 @@ export function TeamMembersDirectory() {
                       />
                     ) : null}
                     <span
-                      className={`text-sm font-bold text-cyan-400 font-mono ${
+                      className={`text-xs font-bold text-cyan-400 font-mono ${
                         member.pic_url ? "hidden" : ""
                       }`}
                     >
                       {getInitials(member.name)}
                     </span>
                   </div>
+                </div>
 
-                  {/* Name & Role */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                      {member.name}
-                    </h3>
-                    <div className="mt-1">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                        <Briefcase className="w-2.5 h-2.5" />
-                        <span className="truncate">{member.role}</span>
-                      </span>
-                    </div>
+                {/* Identity: Full Width Name & Role */}
+                <div className="mt-3 min-w-0">
+                  <h3 className="text-[14.5px] sm:text-[15px] font-semibold text-white tracking-tight group-hover:text-cyan-300 transition-colors truncate">
+                    {member.name}
+                  </h3>
+                  <div className="mt-1">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 max-w-full">
+                      <Briefcase className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{member.role}</span>
+                    </span>
                   </div>
                 </div>
 
                 {/* Academic Metadata */}
-                <div className="pt-3 border-t border-white/[0.04] space-y-1 text-xs text-[#A1A1AA]">
-                  <div className="flex items-center gap-2">
+                <div className="pt-3 mt-3 border-t border-white/[0.04] space-y-1 text-xs text-[#A1A1AA]">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <GraduationCap className="w-3.5 h-3.5 text-[#71717A] shrink-0" />
-                    <span className="truncate">
+                    <span className="truncate text-[11.5px]">
                       {member.course} · {member.branch}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-[#71717A] shrink-0" />
-                    <span className="truncate text-[11px] text-[#71717A]">{member.year}</span>
+                    <span className="truncate text-[11px] text-[#71717A] font-mono">{member.year}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom Batch pill */}
+              {/* Bottom Subtle Brand Watermark */}
               <div className="mt-3 pt-2.5 border-t border-white/[0.03] flex items-center justify-between text-[10px] font-mono text-[#52525B]">
                 <span>AWS SBG</span>
-                <span>Cohort {member.batch || "2026-27"}</span>
+                <span>Builder #{member.display_order ?? 0}</span>
               </div>
             </div>
           ))}

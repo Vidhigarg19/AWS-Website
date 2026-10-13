@@ -45,6 +45,7 @@ import {
   Link2,
   Table2,
   AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -174,6 +175,51 @@ export default function AdminPage() {
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkDragActive, setBulkDragActive] = useState(false);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Custom Confirmation Modal State ───────────────────────
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    variant?: "create" | "danger" | "info";
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const showConfirm = useCallback((opts: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    variant?: "create" | "danger" | "info";
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      ...opts,
+    });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  // Escape key listener for confirmation modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && confirmModal.isOpen) {
+        closeConfirm();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [confirmModal.isOpen, closeConfirm]);
 
   // ── Data Fetching ─────────────────────────────────────────
   const fetchData = useCallback(async (isRefresh = false) => {
@@ -451,75 +497,81 @@ export default function AdminPage() {
   };
 
   // ── Delete Event ──────────────────────────────────────────
-  const handleDeleteEvent = async (event: DbEvent) => {
-    const isConfirmed = window.confirm(
-      `Are you sure you want to permanently delete "${event.name}"?\n\nWarning: This action will permanently remove the event, its attendance records, and any issued certificates.`
-    );
-    if (!isConfirmed) return;
+  const handleDeleteEvent = (event: DbEvent) => {
+    showConfirm({
+      title: "Delete Event",
+      message: `Are you sure you want to permanently delete "${event.name}"?\n\nWarning: This action will permanently remove the event, its attendance records, and any issued certificates.`,
+      confirmLabel: "Delete Event",
+      variant: "danger",
+      onConfirm: async () => {
+        toast.loading(`Deleting "${event.name}"…`, { id: "delete-event" });
 
-    toast.loading(`Deleting "${event.name}"…`, { id: "delete-event" });
+        try {
+          const res = await fetch(`/api/admin/events/${event.id}`, {
+            method: "DELETE",
+          });
+          const json = await res.json();
 
-    try {
-      const res = await fetch(`/api/admin/events/${event.id}`, {
-        method: "DELETE",
-      });
-      const json = await res.json();
-
-      if (json.success) {
-        toast.success(`Event "${event.name}" has been deleted.`, { id: "delete-event" });
-        if (inspectingEventId === event.id) {
-          setInspectingEventId(null);
-          setSelectedEventId("");
+          if (json.success) {
+            toast.success(`Event "${event.name}" has been deleted.`, { id: "delete-event" });
+            if (inspectingEventId === event.id) {
+              setInspectingEventId(null);
+              setSelectedEventId("");
+            }
+            if (editingEvent?.id === event.id) {
+              resetForm();
+            }
+            await fetchData();
+          } else {
+            toast.error(json.error || "Failed to delete event", { id: "delete-event" });
+          }
+        } catch (err: any) {
+          toast.error(err.message || "Failed to delete event", { id: "delete-event" });
         }
-        if (editingEvent?.id === event.id) {
-          resetForm();
-        }
-        await fetchData();
-      } else {
-        toast.error(json.error || "Failed to delete event", { id: "delete-event" });
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete event", { id: "delete-event" });
-    }
+      },
+    });
   };
 
   // ── Remove Participant ──────────────────────────────────────
-  const handleRemoveParticipant = async (p: AdminParticipantRow) => {
+  const handleRemoveParticipant = (p: AdminParticipantRow) => {
     if (!selectedEventId) return;
 
-    const isConfirmed = window.confirm(
-      `Are you sure you want to remove participant "${p.name}" (${p.email})?\n\nWarning: This will permanently delete their attendance record and any associated certificate for this event.`
-    );
-    if (!isConfirmed) return;
+    showConfirm({
+      title: "Remove Participant",
+      message: `Are you sure you want to remove participant "${p.name}" (${p.email})?\n\nWarning: This will permanently delete their attendance record and any associated certificate for this event.`,
+      confirmLabel: "Remove Participant",
+      variant: "danger",
+      onConfirm: async () => {
+        const key = p.attendanceId || p.email;
+        setDeletingParticipantKey(key);
+        toast.loading(`Removing ${p.name}…`, { id: "remove-participant" });
 
-    const key = p.attendanceId || p.email;
-    setDeletingParticipantKey(key);
-    toast.loading(`Removing ${p.name}…`, { id: "remove-participant" });
+        try {
+          const res = await fetch(`/api/admin/events/${selectedEventId}/participants`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              attendanceId: p.attendanceId,
+              participantId: p.participantId,
+              certificateId: p.certificateId,
+            }),
+          });
 
-    try {
-      const res = await fetch(`/api/admin/events/${selectedEventId}/participants`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          attendanceId: p.attendanceId,
-          participantId: p.participantId,
-          certificateId: p.certificateId,
-        }),
-      });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || "Failed to remove participant");
+          }
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Failed to remove participant");
-      }
-
-      toast.success(`Removed "${p.name}" from event.`, { id: "remove-participant" });
-      await fetchParticipants(selectedEventId);
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to remove participant", { id: "remove-participant" });
-    } finally {
-      setDeletingParticipantKey(null);
-    }
+          toast.success(`Removed "${p.name}" from event.`, { id: "remove-participant" });
+          await fetchParticipants(selectedEventId);
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to remove participant", { id: "remove-participant" });
+        } finally {
+          setDeletingParticipantKey(null);
+        }
+      },
+    });
   };
 
   // ── Copy to Clipboard Helper ──────────────────────────────
@@ -688,33 +740,36 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteTeamMember = async (member: DbTeamMember) => {
-    const isConfirmed = window.confirm(
-      `Are you sure you want to remove "${member.name}" from the team?`
-    );
-    if (!isConfirmed) return;
+  const handleDeleteTeamMember = (member: DbTeamMember) => {
+    showConfirm({
+      title: "Remove Team Member",
+      message: `Are you sure you want to remove "${member.name}" from Batch ${member.batch || "2026-27"}?\n\nThis will permanently delete their profile from the team roster.`,
+      confirmLabel: "Remove Member",
+      variant: "danger",
+      onConfirm: async () => {
+        setDeletingTeamMemberId(member.id);
+        toast.loading(`Removing "${member.name}"…`, { id: "delete-team-member" });
 
-    setDeletingTeamMemberId(member.id);
-    toast.loading(`Removing "${member.name}"…`, { id: "delete-team-member" });
+        try {
+          const res = await fetch(`/api/admin/team-members/${member.id}`, {
+            method: "DELETE",
+          });
+          const json = await res.json();
 
-    try {
-      const res = await fetch(`/api/admin/team-members/${member.id}`, {
-        method: "DELETE",
-      });
-      const json = await res.json();
-
-      if (json.success) {
-        toast.success(`"${member.name}" has been removed from the team.`, { id: "delete-team-member" });
-        if (editingTeamMember?.id === member.id) resetTeamForm();
-        await fetchTeamMembers();
-      } else {
-        toast.error(json.error || "Failed to remove team member", { id: "delete-team-member" });
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to remove team member", { id: "delete-team-member" });
-    } finally {
-      setDeletingTeamMemberId(null);
-    }
+          if (json.success) {
+            toast.success(`"${member.name}" has been removed from the team.`, { id: "delete-team-member" });
+            if (editingTeamMember?.id === member.id) resetTeamForm();
+            await fetchTeamMembers();
+          } else {
+            toast.error(json.error || "Failed to remove team member", { id: "delete-team-member" });
+          }
+        } catch (err: any) {
+          toast.error(err.message || "Failed to remove team member", { id: "delete-team-member" });
+        } finally {
+          setDeletingTeamMemberId(null);
+        }
+      },
+    });
   };
 
   // Lock body scroll when team form modal is open
@@ -895,14 +950,17 @@ export default function AdminPage() {
 
   const handleCreateNewBatch = () => {
     const nextBatch = getNextBatchName();
-    const isConfirmed = window.confirm(
-      `Create new batch "${nextBatch}"?`
-    );
-    if (!isConfirmed) return;
-
-    setCustomBatches((prev) => Array.from(new Set([...prev, nextBatch])));
-    setSelectedTeamBatch(nextBatch);
-    toast.success(`Batch ${nextBatch} created and selected.`);
+    showConfirm({
+      title: "Initialize New Batch",
+      message: `Create new cohort "${nextBatch}" and switch active view to it?`,
+      confirmLabel: `Create Batch ${nextBatch}`,
+      variant: "create",
+      onConfirm: () => {
+        setCustomBatches((prev) => Array.from(new Set([...prev, nextBatch])));
+        setSelectedTeamBatch(nextBatch);
+        toast.success(`Batch ${nextBatch} created and selected.`);
+      },
+    });
   };
 
   // Grouped members for the currently selected batch with search filtering
@@ -2037,17 +2095,16 @@ export default function AdminPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
                             {group.members.map((member) => (
                               <div
                                 key={member.id}
-                                className="group relative p-5 rounded-2xl border border-white/[0.06] bg-[#0E0E13] hover:border-cyan-500/20 transition-all duration-300 flex flex-col justify-between"
+                                className="group relative p-4 rounded-2xl border border-white/[0.06] bg-[#0E0E13] hover:border-cyan-500/25 transition-all duration-300 flex flex-col justify-between hover:shadow-lg hover:shadow-cyan-500/5"
                               >
                                 <div>
-                                  {/* Card Header: Photo + Name */}
-                                  <div className="flex items-start gap-4">
-                                    {/* Avatar / Photo */}
-                                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/[0.1] bg-gradient-to-tr from-cyan-500/15 to-blue-500/15 flex items-center justify-center shrink-0">
+                                  {/* Top bar: Avatar on left, Quick Actions on right */}
+                                  <div className="flex items-center justify-between gap-2.5">
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/[0.08] bg-gradient-to-tr from-cyan-500/15 to-blue-500/15 flex items-center justify-center shrink-0">
                                       {member.pic_url ? (
                                         <img
                                           src={member.pic_url}
@@ -2060,7 +2117,7 @@ export default function AdminPage() {
                                         />
                                       ) : null}
                                       <span
-                                        className={`text-sm font-bold text-cyan-400 font-mono ${
+                                        className={`text-xs font-bold text-cyan-400 font-mono ${
                                           member.pic_url ? "hidden" : ""
                                         }`}
                                       >
@@ -2068,24 +2125,8 @@ export default function AdminPage() {
                                       </span>
                                     </div>
 
-                                    {/* Name + Role */}
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                                        {member.name}
-                                      </h4>
-                                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                                          <Briefcase className="w-3 h-3" />
-                                          {member.role}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono text-[#71717A] bg-white/[0.03] border border-white/[0.05]">
-                                          Batch {member.batch || "2026-27"}
-                                        </span>
-                                      </div>
-                                    </div>
-
                                     {/* Card Actions (Edit & Delete) */}
-                                    <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
+                                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
                                       <button
                                         onClick={() => startEditTeamMember(member)}
                                         title="Edit Team Member"
@@ -2108,17 +2149,30 @@ export default function AdminPage() {
                                     </div>
                                   </div>
 
+                                  {/* Identity: Full width name & role */}
+                                  <div className="mt-3 min-w-0">
+                                    <h4 className="text-[14px] font-semibold text-white group-hover:text-cyan-300 transition-colors truncate tracking-tight">
+                                      {member.name}
+                                    </h4>
+                                    <div className="mt-1">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 max-w-full">
+                                        <Briefcase className="w-2.5 h-2.5 shrink-0" />
+                                        <span className="truncate">{member.role}</span>
+                                      </span>
+                                    </div>
+                                  </div>
+
                                   {/* Academic Details */}
-                                  <div className="space-y-1.5 text-xs text-[#A1A1AA] pt-4 mt-4 border-t border-white/[0.04]">
-                                    <div className="flex items-center gap-2">
+                                  <div className="space-y-1 text-xs text-[#A1A1AA] pt-3 mt-3 border-t border-white/[0.04]">
+                                    <div className="flex items-center gap-2 min-w-0">
                                       <GraduationCap className="w-3.5 h-3.5 text-[#71717A] shrink-0" />
-                                      <span className="truncate">
+                                      <span className="truncate text-[11.5px]">
                                         {member.course} — {member.branch}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Calendar className="w-3.5 h-3.5 text-[#71717A] shrink-0" />
-                                      <span className="truncate">{member.year}</span>
+                                      <span className="truncate text-[11px] text-[#71717A] font-mono">{member.year}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -3029,6 +3083,99 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── CUSTOM CONFIRMATION DIALOG MODAL ────────────── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {confirmModal.isOpen && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-150"
+          data-lenis-prevent
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {/* Backdrop with blur */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+            onClick={closeConfirm}
+          />
+
+          {/* Dialog Card */}
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-[#0F0F16] border border-white/[0.1] shadow-2xl p-6 sm:p-7 overflow-hidden z-10 animate-in zoom-in-95 duration-200"
+            data-lenis-prevent
+            onWheel={(e) => e.stopPropagation()}
+          >
+            {/* Top Glow Hairline */}
+            <div
+              className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent ${
+                confirmModal.variant === "danger"
+                  ? "via-rose-500/70"
+                  : "via-cyan-500/70"
+              } to-transparent`}
+            />
+
+            {/* Header: Icon badge & Close button */}
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                  confirmModal.variant === "danger"
+                    ? "bg-rose-500/10 border-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/10"
+                    : "bg-cyan-500/10 border-cyan-500/20 text-cyan-400 shadow-lg shadow-cyan-500/10"
+                }`}
+              >
+                {confirmModal.variant === "danger" ? (
+                  <AlertTriangle className="w-6 h-6" />
+                ) : confirmModal.variant === "create" ? (
+                  <Plus className="w-6 h-6" />
+                ) : (
+                  <Sparkles className="w-6 h-6" />
+                )}
+              </div>
+              <button
+                onClick={closeConfirm}
+                className="h-8 w-8 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-[#71717A] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                {confirmModal.title}
+              </h3>
+              <p className="text-xs sm:text-[13px] text-[#A1A1AA] leading-relaxed whitespace-pre-line">
+                {confirmModal.message}
+              </p>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="flex items-center justify-end gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={closeConfirm}
+                className="h-10 px-4 rounded-xl text-xs font-semibold text-[#A1A1AA] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer"
+              >
+                {confirmModal.cancelLabel || "Cancel"}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const cb = confirmModal.onConfirm;
+                  closeConfirm();
+                  await cb();
+                }}
+                className={`h-10 px-5 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer active:scale-[0.98] shadow-lg ${
+                  confirmModal.variant === "danger"
+                    ? "bg-gradient-to-r from-rose-600 to-red-600 hover:brightness-110 shadow-rose-600/20"
+                    : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 shadow-cyan-500/20"
+                }`}
+              >
+                {confirmModal.confirmLabel || "Confirm"}
+              </button>
             </div>
           </div>
         </div>

@@ -43,78 +43,41 @@ type Event = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
-
-const EVENTS: Event[] = [
-  {
-    title: "Getting Started with AWS",
-    date: "Revealing Soon",
-    isoDate: "",
-    location: "Tulas University, Dehradun",
-    tag: "Workshop",
-    tagColor: "bg-primary/15 text-primary-light",
-    dotColor: "text-primary-light",
-    description:
-      "Your first step into the cloud — learn what AWS is, explore core services like S3, EC2, and IAM, and set up your free-tier account.",
-    status: "current",
-  },
-  {
-    title: "AWS Cloud Practitioner Bootcamp",
-    date: "Revealing Soon",
-    isoDate: "",
-    location: "CS Lab 204, Tulas University",
-    tag: "Workshop",
-    tagColor: "bg-primary/15 text-primary-light",
-    dotColor: "text-primary-light",
-    description:
-      "Three-day intensive covering core AWS services, IAM, S3, EC2, and Lambda. Walk out exam-ready.",
-    status: "upcoming",
-  },
-  {
-    title: "Build Day: Serverless Chat App",
-    date: "Revealing Soon",
-    isoDate: "",
-    location: "Virtual (Discord)",
-    tag: "Hackathon",
-    tagColor: "bg-accent/15 text-accent",
-    dotColor: "text-accent",
-    description:
-      "Build and deploy a real-time serverless chat application using API Gateway, Lambda, and DynamoDB in a single day.",
-    status: "upcoming",
-  },
-  {
-    title: "Cloud Resume Challenge Sprint",
-    date: "Revealing Soon",
-    isoDate: "",
-    location: "Co-working Space, Campus",
-    tag: "Challenge",
-    tagColor: "bg-success/15 text-success",
-    dotColor: "text-success",
-    description:
-      "Complete the Cloud Resume Challenge over a weekend — host your portfolio on AWS with CI/CD and IaC.",
-    status: "upcoming",
-  },
-  {
-    title: "AWS re:Invent Watch Party",
-    date: "Revealing Soon",
-    isoDate: "",
-    location: "Auditorium, Tulas University",
-    tag: "Community",
-    tagColor: "bg-info/15 text-info",
-    dotColor: "text-info",
-    description:
-      "Stream the AWS re:Invent keynote together, discuss new launches, and plan projects around freshly announced services.",
-    status: "upcoming",
-  },
-];
-
-/* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function getNextEvent(): Event | undefined {
-  return EVENTS.find((e) => e.status === "current" || e.status === "upcoming");
+/** Formats a YYYY-MM-DD string to a human-readable date. */
+function formatDisplayDate(iso: string): string {
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/**
+ * Determines event status relative to today.
+ * The first non-past event is labelled "current"; the rest are "upcoming".
+ */
+function computeStatus(
+  eventDate: string,
+  firstFutureId: string | null,
+  id: string
+): EventStatus {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const date = new Date(eventDate + "T00:00:00");
+  if (date < today) return "past";
+  if (id === firstFutureId) return "current";
+  return "upcoming";
+}
+
+function getNextEvent(events: Event[]): Event | undefined {
+  return events.find((e) => e.status === "current" || e.status === "upcoming");
 }
 
 function hasConcreteDate(event: Event): boolean {
@@ -162,16 +125,8 @@ function EventCard({ event }: { event: Event }) {
   return (
     <SpotlightCard
       className={`border-border ${isPast ? "opacity-60 hover:opacity-80" : ""}`}
-      spotlightColor={
-        isPast
-          ? "rgba(113, 113, 122, 0.02)"
-          : "rgba(167, 139, 250, 0.035)"
-      }
-      borderColor={
-        isPast
-          ? "rgba(113, 113, 122, 0.05)"
-          : "rgba(192, 132, 252, 0.1)"
-      }
+      spotlightColor={isPast ? "rgba(113, 113, 122, 0.02)" : "rgba(167, 139, 250, 0.035)"}
+      borderColor={isPast ? "rgba(113, 113, 122, 0.05)" : "rgba(192, 132, 252, 0.1)"}
     >
       <div className="p-5 sm:p-6">
         {/* Top row: status + tag */}
@@ -206,13 +161,15 @@ function EventCard({ event }: { event: Event }) {
             <Clock size={14} className="shrink-0 text-text-secondary" animateOnHover />
             <span>{event.date}</span>
           </div>
-          <div className="flex items-center gap-2 text-[13px] text-muted">
-            <MapPin size={14} className="shrink-0 text-text-secondary" animateOnHover />
-            <span>{event.location}</span>
-          </div>
+          {event.location && (
+            <div className="flex items-center gap-2 text-[13px] text-muted">
+              <MapPin size={14} className="shrink-0 text-text-secondary" animateOnHover />
+              <span>{event.location}</span>
+            </div>
+          )}
         </div>
 
-        {/* CTA — Only shown for 'Up Next' (current) event */}
+        {/* CTA — Only shown for the "Up Next" (current) event */}
         {event.status === "current" && (
           <div className="mt-5 flex items-center justify-between">
             <RecruitmentCTA
@@ -231,19 +188,118 @@ function EventCard({ event }: { event: Event }) {
   );
 }
 
+/** Animated placeholder shown while data loads */
+function EventCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border bg-bg-card/40 p-5 sm:p-6 animate-pulse space-y-3">
+      <div className="flex gap-2">
+        <div className="h-5 w-16 rounded-full bg-white/[0.06]" />
+        <div className="h-5 w-20 rounded-full bg-white/[0.06]" />
+      </div>
+      <div className="h-6 w-3/4 rounded bg-white/[0.06]" />
+      <div className="space-y-2">
+        <div className="h-4 w-full rounded bg-white/[0.04]" />
+        <div className="h-4 w-5/6 rounded bg-white/[0.04]" />
+      </div>
+      <div className="flex gap-4 pt-1">
+        <div className="h-4 w-28 rounded bg-white/[0.04]" />
+        <div className="h-4 w-36 rounded bg-white/[0.04]" />
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Main Component                                                     */
 /* ------------------------------------------------------------------ */
 
 export function Events() {
   const containerRef = React.useRef<HTMLElement>(null);
-  const nextEvent = getNextEvent();
 
-  const upcomingEvents = EVENTS.filter((e) => e.status !== "past");
+  // ── Live data ────────────────────────────────────────────
+  const [events, setEvents] = React.useState<Event[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [fetchError, setFetchError] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadEvents() {
+      setLoading(true);
+      setFetchError(null);
+
+      try {
+        const res = await fetch("/api/events", { cache: "no-store" });
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || "Failed to load events");
+        }
+
+        // Determine the first non-past event so we can label it "current"
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const firstFutureRow = (
+          json.data as Array<{ id: string; event_date: string }>
+        ).find((row) => new Date(row.event_date + "T00:00:00") >= today);
+
+        const firstFutureId = firstFutureRow?.id ?? null;
+
+        // Map Supabase row → UI Event shape
+        const mapped: Event[] = (
+          json.data as Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            event_date: string;
+            event_timing: string;
+            speaker_name: string | null;
+            attendance_open: boolean;
+          }>
+        ).map((row) => {
+          const status = computeStatus(row.event_date, firstFutureId, row.id);
+          return {
+            title: row.name,
+            date: formatDisplayDate(row.event_date),
+            isoDate: status !== "past" ? row.event_date + "T00:00:00" : "",
+            location: row.speaker_name ? `Speaker: ${row.speaker_name}` : "",
+            tag: "Workshop",
+            tagColor:
+              status === "past"
+                ? "bg-muted/10 text-muted"
+                : "bg-primary/15 text-primary-light",
+            dotColor: status === "past" ? "text-muted" : "text-primary-light",
+            description: row.description ?? "",
+            status,
+          };
+        });
+
+        if (!cancelled) setEvents(mapped);
+      } catch (err: unknown) {
+        if (!cancelled)
+          setFetchError(
+            err instanceof Error ? err.message : "Could not load events"
+          );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadEvents();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const nextEvent = getNextEvent(events);
+  const upcomingEvents = events.filter((e) => e.status !== "past");
+
+  // ── GSAP animations (re-run after data loads) ────────────
   useGSAP(
     () => {
-      // Header reveal
+      if (loading) return;
+
       gsap.from(".events-header-el", {
         opacity: 0,
         y: 20,
@@ -257,7 +313,6 @@ export function Events() {
         },
       });
 
-      // Countdown section reveal
       gsap.from(".countdown-section", {
         opacity: 0,
         y: 30,
@@ -270,7 +325,6 @@ export function Events() {
         },
       });
 
-      // Timeline items staggered reveal
       gsap.set(".timeline-event-item", { opacity: 0, x: -20 });
 
       ScrollTrigger.batch(".timeline-event-item", {
@@ -295,16 +349,13 @@ export function Events() {
         start: "top 88%",
       });
 
-
-
-      // Refresh ScrollTrigger
       const refreshTimer = setTimeout(() => {
         ScrollTrigger.refresh();
       }, 200);
 
       return () => clearTimeout(refreshTimer);
     },
-    { scope: containerRef }
+    { scope: containerRef, dependencies: [loading] }
   );
 
   return (
@@ -315,26 +366,23 @@ export function Events() {
     >
       <Spotlight className="-top-40 left-0 md:-top-20 md:left-32 max-h-[800px]" fill="#A78BFA" />
 
-      {/* Headline ambient glow — centered behind hero heading */}
+      {/* Ambient glows */}
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/3 -top-16 h-[420px] w-[500px] -translate-x-1/2 rounded-full bg-primary/8 blur-[140px]"
       />
-      {/* Secondary glow — right side, illuminating mid-timeline */}
       <div
         aria-hidden
         className="pointer-events-none absolute right-0 top-[40%] h-[400px] w-[400px] translate-x-1/4 rounded-full bg-secondary/6 blur-[150px]"
       />
-      {/* Bottom accent glow — subtle wash behind past events */}
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 bottom-0 h-[300px] w-[500px] -translate-x-1/2 rounded-full bg-accent/5 blur-[180px]"
       />
 
       <div className="relative mx-auto max-w-content px-4 sm:px-6 pt-28 pb-16 md:pt-32 md:pb-24 lg:pt-32 lg:pb-32">
-        {/* ============================================================ */}
-        {/*  Hero Header                                                  */}
-        {/* ============================================================ */}
+
+        {/* ── Hero Header ──────────────────────────────────────── */}
         <div className="events-header-container">
           <p className="events-header-el text-[11px] uppercase tracking-[0.16em] text-muted">
             Upcoming Events
@@ -351,10 +399,46 @@ export function Events() {
           </p>
         </div>
 
-        {/* ============================================================ */}
-        {/*  Countdown to Next Event                                      */}
-        {/* ============================================================ */}
-        {nextEvent && (
+        {/* ── Loading skeletons ────────────────────────────────── */}
+        {loading && (
+          <div className="mt-16 space-y-6">
+            {[0, 1, 2].map((i) => (
+              <EventCardSkeleton key={i} />
+            ))}
+          </div>
+        )}
+
+        {/* ── Error state ──────────────────────────────────────── */}
+        {!loading && fetchError && (
+          <div className="mt-16 flex flex-col items-center gap-3 text-center py-16">
+            <p className="text-[15px] text-text-secondary">
+              Could not load events right now.
+            </p>
+            <p className="text-[13px] text-muted">{fetchError}</p>
+          </div>
+        )}
+
+        {/* ── Empty state ──────────────────────────────────────── */}
+        {!loading && !fetchError && events.length === 0 && (
+          <div className="mt-16 flex flex-col items-center py-20">
+            <div className="inline-flex flex-col items-start gap-3 rounded-2xl border border-border/60 bg-bg-card/60 backdrop-blur-md px-8 py-7">
+              <p className="text-[12px] uppercase tracking-[0.14em] text-muted flex items-center gap-2 mx-auto">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary-light animate-pulse" />
+                Coming Soon
+              </p>
+              <p className="font-display text-[22px] sm:text-[26px] font-semibold text-text-primary">
+                Events being planned
+              </p>
+              <p className="text-[14px] text-text-secondary max-w-sm">
+                Our next workshop is in the works. Stay tuned — announcements
+                drop here first.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Countdown to next event ───────────────────────────── */}
+        {!loading && !fetchError && nextEvent && (
           <div className="countdown-section mt-12 sm:mt-16">
             <div className="flex flex-col items-center sm:items-start">
               {hasConcreteDate(nextEvent) ? (
@@ -375,7 +459,9 @@ export function Events() {
                     accentClassName="via-primary-light/40"
                   />
                   <p className="mt-3 text-[13px] text-text-secondary">
-                    <span className="text-primary-light font-medium">{nextEvent.title}</span>
+                    <span className="text-primary-light font-medium">
+                      {nextEvent.title}
+                    </span>
                     {" "}— {nextEvent.date}
                   </p>
                 </>
@@ -400,60 +486,58 @@ export function Events() {
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/*  Upcoming Events — Timeline                                   */}
-        {/* ============================================================ */}
-        <div className="mt-16 sm:mt-20">
-          <Timeline positions="left" className="gap-0">
-            {upcomingEvents.map((event, idx) => (
-              <TimelineItem
-                key={`upcoming-${idx}`}
-                status={event.status === "past" ? "done" : "default"}
-                className="timeline-event-item"
-              >
-                <TimelineHeading
-                  className={`text-[13px] font-medium ${
-                    event.status === "current"
-                      ? "text-primary-light"
-                      : "text-text-secondary"
-                  }`}
+        {/* ── Upcoming Events — Timeline ────────────────────────── */}
+        {!loading && !fetchError && upcomingEvents.length > 0 && (
+          <div className="mt-16 sm:mt-20">
+            <Timeline positions="left" className="gap-0">
+              {upcomingEvents.map((event, idx) => (
+                <TimelineItem
+                  key={`upcoming-${idx}`}
+                  status={event.status === "past" ? "done" : "default"}
+                  className="timeline-event-item"
                 >
-                  {event.date}
-                </TimelineHeading>
-
-                <TimelineDot
-                  status={getTimelineDotStatus(event.status)}
-                  className={`${event.dotColor} ${
-                    event.status === "current"
-                      ? "ring-2 ring-primary/30 ring-offset-2 ring-offset-bg scale-125"
-                      : ""
-                  }`}
-                />
-
-                {idx < upcomingEvents.length - 1 && (
-                  <TimelineLine
-                    done={event.status === "past"}
-                    className={
+                  <TimelineHeading
+                    className={`text-[13px] font-medium ${
                       event.status === "current"
-                        ? "bg-gradient-to-b from-primary to-muted"
+                        ? "text-primary-light"
+                        : "text-text-secondary"
+                    }`}
+                  >
+                    {event.date}
+                  </TimelineHeading>
+
+                  <TimelineDot
+                    status={getTimelineDotStatus(event.status)}
+                    className={`${event.dotColor} ${
+                      event.status === "current"
+                        ? "ring-2 ring-primary/30 ring-offset-2 ring-offset-bg scale-125"
                         : ""
-                    }
+                    }`}
                   />
-                )}
 
-                <TimelineContent className="pb-10 pt-1 w-full max-w-2xl">
-                  <div className="group">
-                    <EventCard event={event} />
-                  </div>
-                </TimelineContent>
-              </TimelineItem>
-            ))}
-          </Timeline>
-        </div>
+                  {idx < upcomingEvents.length - 1 && (
+                    <TimelineLine
+                      done={event.status === "past"}
+                      className={
+                        event.status === "current"
+                          ? "bg-gradient-to-b from-primary to-muted"
+                          : ""
+                      }
+                    />
+                  )}
 
-        {/* ============================================================ */}
-        {/*  Suggest Event Section (Submits to Supabase)                  */}
-        {/* ============================================================ */}
+                  <TimelineContent className="pb-10 pt-1 w-full max-w-2xl">
+                    <div className="group">
+                      <EventCard event={event} />
+                    </div>
+                  </TimelineContent>
+                </TimelineItem>
+              ))}
+            </Timeline>
+          </div>
+        )}
+
+        {/* ── Suggest Event Section ─────────────────────────────── */}
         <SuggestEventSection />
       </div>
     </section>

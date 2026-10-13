@@ -57,6 +57,34 @@ export interface DbPortalConfig {
   attendance_enabled: boolean;
 }
 
+export interface DbTeamMember {
+  id: string;
+  name: string;
+  pic_url: string | null;
+  course: string;
+  branch: string;
+  year: string;
+  role: string;
+  batch: string; // e.g. "2026-27", "2027-28"
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Admin: Create/Update team member request.
+ */
+export interface AdminTeamMemberRequest {
+  name: string;
+  picUrl?: string | null;
+  course: string;
+  branch: string;
+  year: string;
+  role: string;
+  batch?: string; // e.g. "2026-27", "2027-28"
+  displayOrder?: number;
+}
+
 // ============================================================
 // Certificate Generation
 // ============================================================

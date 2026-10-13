@@ -7,6 +7,7 @@ import { TeamHero } from "./TeamHero";
 import { TeamSelectionRoadmap } from "./TeamSelectionRoadmap";
 import { TeamWingsHiring } from "./TeamWingsHiring";
 import { TeamLeadership } from "./TeamLeadership";
+import { TeamMembersDirectory } from "./TeamMembersDirectory";
 import { TeamFAQ } from "./TeamFAQ";
 import { TeamCTA } from "./TeamCTA";
 
@@ -49,6 +50,11 @@ export function Team() {
         {/* ─── 4. Advisory Leadership ──────────────────── */}
         <div className="border-t border-border/40">
           <TeamLeadership />
+        </div>
+
+        {/* ─── 4.5 Student Builders Roster (by Cohort) ───── */}
+        <div className="border-t border-border/40">
+          <TeamMembersDirectory />
         </div>
 
         {/* ─── 5. FAQ ──────────────────────────────────── */}

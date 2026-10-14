@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/features/home/Hero";
+import { HeroEventSpotlight } from "@/components/features/home/HeroEventSpotlight";
 import { TrustedBy } from "@/components/features/home/TrustedBy";
 import { ScrollRevealSection } from "@/components/features/home/ScrollRevealSection";
 import { WhyCloudMatters } from "@/components/features/home/WhyCloudMatters";
@@ -26,6 +27,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <HeroEventSpotlight />
       <ScrollRevealSection />
       {/* <WhyCloudMatters /> */}
       <TrustedBy />

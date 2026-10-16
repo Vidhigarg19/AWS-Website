@@ -339,14 +339,15 @@ export function Events() {
 
         // Map Supabase rows → UI Event shape
         const mapped: Event[] = rawEvents.map((row: DbEvent) => {
-          const status = computeStatus(row.event_date, firstFutureId, row.id);
+          const eventDate = row.event_date ?? "";
+          const status = computeStatus(eventDate, firstFutureId, row.id);
           return {
             id: row.id,
             title: row.name,
-            date: formatDisplayDate(row.event_date),
-            rawDate: row.event_date,
-            timing: row.event_timing,
-            isoDate: status !== "past" ? row.event_date + "T00:00:00" : "",
+            date: formatDisplayDate(eventDate),
+            rawDate: eventDate,
+            timing: row.event_timing ?? "",
+            isoDate: status !== "past" ? eventDate + "T00:00:00" : "",
             speakerName: row.speaker_name,
             attendanceOpen: row.attendance_open,
             tag: "Workshop",

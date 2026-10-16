@@ -109,7 +109,7 @@ export default function UpcomingEventCard() {
           if (past.length > 0) {
             const mappedPast = past.slice(0, 3).map((item, idx) => ({
               title: item.name,
-              date: parseEventDate(item.event_date).formatted,
+              date: parseEventDate(item.event_date ?? "").formatted,
               image: DEFAULT_PAST_EVENTS[idx % DEFAULT_PAST_EVENTS.length].image,
             }));
             // Fill remainder with presets if fewer than 3
@@ -138,7 +138,7 @@ export default function UpcomingEventCard() {
   const event = upcomingEvent;
 
   const { formatted: eventDateFormatted, dayOfWeek: eventDayOfWeek } =
-    parseEventDate(event.event_date);
+    parseEventDate(event.event_date ?? "");
 
   return (
     <section

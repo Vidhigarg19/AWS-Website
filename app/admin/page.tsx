@@ -1291,8 +1291,8 @@ export default function AdminPage() {
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* ── 1. STICKY EXECUTIVE COCKPIT HEADER ──────────────────────── */}
       {/* ══════════════════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#08080C]/85 backdrop-blur-xl transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 sm:h-20 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#08080C]/95 backdrop-blur-2xl transition-all">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
           {/* Left: AWS SBG Monogram & Portal Indicator */}
           <div className="flex items-center gap-3.5 shrink-0">
             <div className="relative group">
@@ -1335,7 +1335,7 @@ export default function AdminPage() {
           </div>
 
           {/* Center: High-End Segmented Navigation Pills */}
-          <nav className="hidden lg:flex items-center p-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-inner">
+          <nav className="hidden md:flex items-center p-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-inner">
             <button
               onClick={() => setActiveTab("events")}
               className={`h-9 px-4 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-2 ${
@@ -1426,6 +1426,17 @@ export default function AdminPage() {
               />
             </button>
 
+            {/* View Public Website Link */}
+            <Link
+              href="/"
+              target="_blank"
+              className="h-9 sm:h-10 px-3.5 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] transition-all hidden sm:flex items-center gap-1.5"
+              title="Open Public Website in new tab"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-[#71717A]" />
+              <span>View Site</span>
+            </Link>
+
             {/* Attendance Portal Link */}
             <Link
               href="/attendance"
@@ -1433,7 +1444,7 @@ export default function AdminPage() {
               className="h-9 sm:h-10 px-3.5 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] transition-all hidden sm:flex items-center gap-1.5"
               title="View Public Attendance Portal"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-[#71717A]" />
+              <ArrowUpRight className="w-3.5 h-3.5 text-[#71717A]" />
               <span>Portal</span>
             </Link>
 
@@ -1450,7 +1461,7 @@ export default function AdminPage() {
         </div>
 
         {/* Mobile Navigation Tab Bar */}
-        <div className="lg:hidden px-4 pb-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-white/[0.04] pt-2.5">
+        <div className="md:hidden px-4 pb-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-white/[0.04] pt-2.5">
           <button
             onClick={() => setActiveTab("events")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${

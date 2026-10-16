@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Linkedin, Instagram, Mail } from "lucide-react";
 import { ArrowRight } from "@/components/ui/animate-ui/icons/arrow-right";
 import { Sparkles } from "@/components/ui/animate-ui/icons/sparkles";
@@ -105,9 +106,11 @@ const SOCIALS = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
   const footerRef = useRef<HTMLElement>(null);
 
   useGSAP(() => {
+    if (pathname?.startsWith("/admin")) return;
     if (!footerRef.current) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
 
@@ -152,6 +155,10 @@ export function Footer() {
     }, 200);
     return () => clearTimeout(refreshTimer);
   }, { scope: footerRef });
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <footer ref={footerRef} className="relative z-10 border-t border-white/[0.05] bg-bg overflow-hidden">

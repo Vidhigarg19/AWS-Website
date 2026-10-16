@@ -86,10 +86,16 @@ function computeStatus(
   firstFutureId: string | null,
   id: string
 ): EventStatus {
+  // TBA events (empty / null date) have no confirmed date yet — treat as upcoming
+  if (!eventDate || eventDate.trim() === "") {
+    return id === firstFutureId ? "current" : "upcoming";
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const date = new Date(eventDate + "T00:00:00");
-  if (isNaN(date.getTime()) || date < today) return "past";
+  // If the date string is malformed, also treat as upcoming rather than concluded
+  if (isNaN(date.getTime())) return "upcoming";
+  if (date < today) return "past";
   if (id === firstFutureId) return "current";
   return "upcoming";
 }

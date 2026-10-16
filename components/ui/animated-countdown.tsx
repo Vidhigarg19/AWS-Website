@@ -313,8 +313,8 @@ export function AnimatedCountdown({
     >
       <div
         className={cn(
-          "grid max-w-full grid-cols-2 items-stretch gap-2 sm:flex sm:flex-wrap sm:justify-center",
-          showSeparators && "sm:gap-0",
+          "flex max-w-full flex-row flex-nowrap items-stretch gap-2 justify-center",
+          showSeparators && "gap-0",
         )}
       >
         {visibleUnits.map((unit, index) => (

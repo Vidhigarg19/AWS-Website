@@ -583,8 +583,8 @@ export function Events() {
                       size="lg"
                       completionMessage="🎉 The event is live now!"
                       containerClassName="bg-black/40 border-white/[0.08] backdrop-blur-md justify-center sm:justify-start"
-                      unitClassName="bg-white/[0.035] border-white/10 hover:border-primary/40 hover:bg-white/[0.06] min-w-[4.8rem] sm:min-w-[5.4rem] py-3.5"
-                      numberClassName="text-3xl sm:text-4xl font-bold font-mono tracking-tight text-white"
+                      unitClassName="bg-white/[0.035] border-white/10 hover:border-primary/40 hover:bg-white/[0.06] min-w-[4.2rem] sm:min-w-[5rem] py-3"
+                      numberClassName="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-white"
                       labelClassName="text-[10px] uppercase font-mono tracking-wider text-muted font-semibold"
                       accentClassName="via-primary/50"
                     />

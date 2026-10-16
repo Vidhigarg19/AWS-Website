@@ -35,8 +35,8 @@ const FOOTER_LINKS = [
     heading: "Connect",
     links: [
       { label: "Meetup", href: "https://www.meetup.com/tulas-university-dehradun/", hoverClass: "group-hover:text-[#F64060]", arrowColor: "group-hover:text-[#F64060]" },
-      { label: "WhatsApp Channel", href: "https://whatsapp.com/channel/0029VbDJ4jD6WaKnCQZRWF2Z", hoverClass: "group-hover:text-[#25D366]", arrowColor: "group-hover:text-[#25D366]" },
-      { label: "LinkedIn", href: "#", hoverClass: "group-hover:text-[#0A66C2]", arrowColor: "group-hover:text-[#0A66C2]" },
+      { label: "WhatsApp", href: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4", hoverClass: "group-hover:text-[#25D366]", arrowColor: "group-hover:text-[#25D366]" },
+      { label: "LinkedIn", href: "https://www.linkedin.com/company/aws-tulas/", hoverClass: "group-hover:text-[#0A66C2]", arrowColor: "group-hover:text-[#0A66C2]" },
       { label: "Instagram", href: "https://www.instagram.com/aws.sbgtulas", hoverClass: "group-hover:text-[#E4405F]", arrowColor: "group-hover:text-[#E4405F]" },
       { label: "Email Us", href: "mailto:awssbg@tulas.edu.in", hoverClass: "group-hover:text-[#FF9900]", arrowColor: "group-hover:text-[#FF9900]" },
     ],
@@ -80,13 +80,13 @@ const SOCIALS = [
   },
   {
     icon: WhatsAppIcon,
-    href: "https://whatsapp.com/channel/0029VbDJ4jD6WaKnCQZRWF2Z",
+    href: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4",
     label: "WhatsApp",
     hoverClass: "hover:text-[#25D366] hover:bg-[#25D366]/15 hover:border-[#25D366]/40 hover:shadow-[0_0_15px_rgba(37,211,102,0.35)]",
   },
   {
     icon: Linkedin,
-    href: "#",
+    href: "https://www.linkedin.com/company/aws-tulas/",
     label: "LinkedIn",
     hoverClass: "hover:text-[#0A66C2] hover:bg-[#0A66C2]/15 hover:border-[#0A66C2]/40 hover:shadow-[0_0_15px_rgba(10,102,194,0.35)]",
   },

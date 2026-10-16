@@ -13,7 +13,6 @@ import {
 import { cn } from "@/lib/utils";
 import GlassCoinCarousel from "@/components/ui/3d-glass-coin-carousel";
 import { FlipText } from "@/components/ui/flip-text";
-import UpcomingEventCard from "@/components/features/home/UpcomingEventCard";
 
 const HERO_STATS = [
   { value: "2026", label: "Launch Year", icon: Cloud, featuredMobile: true },
@@ -184,7 +183,6 @@ export function Hero() {
         </div>
 
         {/* ── Metric Cards Bento Layout (Mobile & Desktop) ── */}
-<UpcomingEventCard />
         <div className="mt-6 sm:mt-12 grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 max-w-xl w-full px-2">
           {HERO_STATS.map((stat, sIdx) => {
             const Icon = stat.icon;

@@ -23,6 +23,7 @@ import type {
   AttendanceSubmitRequest,
   AttendanceSubmitResponse,
 } from "@/types/certificate";
+import { cleanFullName } from "@/lib/utils";
 
 /**
  * Validates attendance submission body.
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fullName = body.fullName!.trim();
+    const fullName = cleanFullName(body.fullName!);
     const email = body.email!.trim().toLowerCase();
     const course = body.course!.trim();
     const rollNo = body.rollNo!.trim();

@@ -60,8 +60,11 @@ export async function POST(request: NextRequest) {
   // ── Validate ──────────────────────────────────────────────
   const errors: Record<string, string> = {};
   if (!body.name?.trim()) errors.name = "Event name is required.";
-  if (!body.eventDate?.trim()) errors.eventDate = "Event date is required.";
-  if (!body.eventTiming?.trim()) errors.eventTiming = "Event timing is required.";
+  const isTBA = Boolean(body.isTBA || (!body.eventDate && !body.eventTiming));
+  if (!isTBA) {
+    if (!body.eventDate?.trim()) errors.eventDate = "Event date is required.";
+    if (!body.eventTiming?.trim()) errors.eventTiming = "Event timing is required.";
+  }
 
   if (Object.keys(errors).length > 0) {
     return NextResponse.json(
@@ -76,8 +79,8 @@ export async function POST(request: NextRequest) {
     .insert({
       name: body.name.trim(),
       description: body.description?.trim() || null,
-      event_date: body.eventDate.trim(),
-      event_timing: body.eventTiming.trim(),
+      event_date: isTBA ? null : (body.eventDate?.trim() || null),
+      event_timing: isTBA ? null : (body.eventTiming?.trim() || null),
       speaker_name: body.speakerName?.trim() || null,
       attendance_open: body.attendanceOpen ?? false,
     })

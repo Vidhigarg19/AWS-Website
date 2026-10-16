@@ -57,8 +57,8 @@ CREATE TABLE public.events (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL,
     description     TEXT,
-    event_date      DATE NOT NULL,
-    event_timing    TEXT NOT NULL,       -- display-oriented, e.g. "11:00 AM - 12:30 PM"
+    event_date      DATE,                -- nullable when session is "To be announced"
+    event_timing    TEXT,                -- display-oriented, nullable when date/timing TBA
     speaker_name    TEXT,
     attendance_open BOOLEAN NOT NULL DEFAULT false
 );

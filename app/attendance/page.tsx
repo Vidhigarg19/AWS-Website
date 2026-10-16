@@ -25,6 +25,7 @@ import type {
   AttendanceSubmitResponse,
   ApiResponse,
 } from "@/types/certificate";
+import { formatFullName, cleanFullName } from "@/lib/utils";
 import "@/app/certificate/attendance.css";
 
 interface FormData {
@@ -93,6 +94,9 @@ export default function AttendancePortalPage() {
   }, [fetchConfig]);
 
   // ── Form Helpers ───────────────────────────────────────────
+  /** Formats name to proper Title Case preserving spacing while typing. */
+  const toTitleCase = (value: string): string => formatFullName(value);
+
   const updateField = (field: keyof FormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrorMsg("");
@@ -167,7 +171,7 @@ export default function AttendancePortalPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: form.name.trim(),
+          fullName: cleanFullName(form.name),
           email: form.email.trim().toLowerCase(),
           course: effectiveCourse,
           rollNo: form.rollNo.trim(),
@@ -299,8 +303,13 @@ export default function AttendancePortalPage() {
 
   // Format event date
   const formattedDate = (() => {
+    if (!event.eventDate || !event.eventDate.trim() || event.eventDate.toLowerCase() === "tba") {
+      return "To be announced";
+    }
     try {
-      return new Date(event.eventDate + "T00:00:00").toLocaleDateString("en-IN", {
+      const d = new Date(event.eventDate + "T00:00:00");
+      if (isNaN(d.getTime())) return "To be announced";
+      return d.toLocaleDateString("en-IN", {
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -480,7 +489,7 @@ export default function AttendancePortalPage() {
               </div>
 
               {/* Date & Timing Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className={event.eventTiming ? "grid grid-cols-1 sm:grid-cols-2 gap-2.5" : "grid grid-cols-1 gap-2.5"}>
                 <div className="p-3.5 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">
                   <Calendar className="w-4 h-4 text-[#8B8B96] flex-shrink-0" />
                   <div className="min-w-0">
@@ -493,17 +502,19 @@ export default function AttendancePortalPage() {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-[#8B8B96] flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] uppercase tracking-wider text-[#8B8B96] font-mono">
-                      Timing
-                    </div>
-                    <div className="text-xs font-medium text-white truncate">
-                      {event.eventTiming}
+                {event.eventTiming && (
+                  <div className="p-3.5 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">
+                    <Clock className="w-4 h-4 text-[#8B8B96] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wider text-[#8B8B96] font-mono">
+                        Timing
+                      </div>
+                      <div className="text-xs font-medium text-white truncate">
+                        {event.eventTiming}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Speaker if available */}
@@ -554,7 +565,7 @@ export default function AttendancePortalPage() {
                     autoComplete="name"
                     autoCapitalize="words"
                     value={form.name}
-                    onChange={(e) => updateField("name", e.target.value)}
+                    onChange={(e) => updateField("name", toTitleCase(e.target.value))}
                     placeholder="e.g. Piyush Rawat"
                     className="att-input"
                   />

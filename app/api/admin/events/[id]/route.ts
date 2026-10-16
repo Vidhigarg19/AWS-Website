@@ -71,8 +71,13 @@ export async function PUT(
   const updatePayload: Record<string, unknown> = {};
   if (body.name !== undefined) updatePayload.name = body.name.trim();
   if (body.description !== undefined) updatePayload.description = body.description?.trim() || null;
-  if (body.eventDate !== undefined) updatePayload.event_date = body.eventDate.trim();
-  if (body.eventTiming !== undefined) updatePayload.event_timing = body.eventTiming.trim();
+  if (body.isTBA) {
+    updatePayload.event_date = null;
+    updatePayload.event_timing = null;
+  } else {
+    if (body.eventDate !== undefined) updatePayload.event_date = body.eventDate ? body.eventDate.trim() : null;
+    if (body.eventTiming !== undefined) updatePayload.event_timing = body.eventTiming ? body.eventTiming.trim() : null;
+  }
   if (body.speakerName !== undefined) updatePayload.speaker_name = body.speakerName?.trim() || null;
   if (body.attendanceOpen !== undefined) updatePayload.attendance_open = body.attendanceOpen;
 

@@ -27,6 +27,34 @@ export interface SvgCertificateInput {
   signatureDataUri?: string;
 }
 
+/**
+ * SVG canvas dimensions (from the Certificate-Template.svg viewBox).
+ * Used for coordinate mapping between SVG space and PDF page space.
+ */
+export const SVG_CANVAS = { width: 3300, height: 2550 } as const;
+
+/**
+ * The raw SVG-space position of the Certificate ID text line.
+ * x=220 (left-aligned), y=2285 (baseline).
+ */
+export const CERT_ID_SVG_POSITION = { x: 220, y: 2285 } as const;
+
+/**
+ * The raw SVG-space position of the verification URL text line.
+ * x=220 (left-aligned, same as certId block), y=2330 (baseline).
+ */
+export const VERIFY_URL_SVG_POSITION = { x: 220, y: 2330 } as const;
+
+/** Returns the Certificate ID text as it appears on the certificate. */
+export function buildCertIdText(certificateId: string): string {
+  return `Certificate ID: ${certificateId}`;
+}
+
+/** Returns the full verification URL text as it appears on the certificate. */
+export function buildVerifyUrlText(certificateId: string): string {
+  return `Verify Certificate: https://awstulas.org/verify/${certificateId}`;
+}
+
 let cachedTemplateSvg: string | null = null;
 let cachedBoldFont: Font | null = null;
 let cachedRegFont: Font | null = null;
@@ -274,19 +302,12 @@ export async function generateCertificateSvg(
     ? `<image href="${input.qrDataUri}" x="220" y="2010" width="230" height="230" />`
     : `<rect x="220" y="2010" width="230" height="230" fill="#F4F4F6" stroke="#DEDEE3" stroke-width="2" rx="8"/><text x="335" y="2135" text-anchor="middle" font-family="monospace" font-size="24" fill="#888">[QR]</text>`;
 
-  const certIdText = `Certificate ID: ${certificateId}`;
-  const certIdSize = getFittingFontSize(boldFont, certIdText, 26, 700);
-  const certIdPath = textToSvgPathLeft(boldFont, certIdText, 220, 2285, certIdSize, "#161D26");
-
-  const verifyUrlText = `Verify Certificate: https://awstulas.org/verify/${certificateId}`;
-  const verifyUrlSize = getFittingFontSize(boldFont, verifyUrlText, 24, 1400);
-  const verifyLabelPath = textToSvgPathLeft(boldFont, verifyUrlText, 220, 2330, verifyUrlSize, "#161D26");
-
+  // NOTE: Both the Certificate ID and the Verification URL are intentionally NOT rendered
+  // into the SVG path raster here. They are overlaid as real, selectable PDF text
+  // by the pdf-generator. This ensures both lines are 100% selectable and copy-pasteable.
   const qrAndMetaXml = `
     <g id="dynamic-verification-meta">
       ${qrImageXml}
-      ${certIdPath}
-      ${verifyLabelPath}
     </g>
   `;
 

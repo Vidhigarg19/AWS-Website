@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
 import type { DbTeamMember } from "@/types/certificate";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -47,6 +51,16 @@ export function TeamMembersDirectory() {
     }
     fetchMembers();
   }, []);
+
+  // Recalculate ScrollTrigger offsets when members finish loading or batch changes
+  useEffect(() => {
+    if (!loading) {
+      const timer = setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, activeBatch]);
 
   // Compute available batches
   const availableBatches = useMemo(() => {

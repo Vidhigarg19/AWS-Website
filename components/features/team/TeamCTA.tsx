@@ -35,9 +35,8 @@ export function TeamCTA() {
           ease: "power2.out",
           scrollTrigger: {
             trigger: cardContainerRef.current,
-            start: "top 88%",
-            end: "bottom 10%",
-            toggleActions: "play reverse play reverse",
+            start: "top 85%",
+            once: true,
           },
         }
       );
@@ -58,8 +57,7 @@ export function TeamCTA() {
           scrollTrigger: {
             trigger: pillsRef.current,
             start: "top 88%",
-            end: "bottom 10%",
-            toggleActions: "play reverse play reverse",
+            once: true,
           },
         }
       );
@@ -79,12 +77,16 @@ export function TeamCTA() {
           scrollTrigger: {
             trigger: memberCardRef.current,
             start: "top 88%",
-            end: "bottom 10%",
-            toggleActions: "play reverse play reverse",
+            once: true,
           },
         }
       );
     }
+
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 200);
+    return () => clearTimeout(timer);
   }, { scope: sectionRef });
 
   return (

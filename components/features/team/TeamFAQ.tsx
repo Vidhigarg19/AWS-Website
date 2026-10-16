@@ -57,8 +57,7 @@ export function TeamFAQ() {
           scrollTrigger: {
             trigger: headerRef.current,
             start: "top 88%",
-            end: "bottom 10%",
-            toggleActions: "play reverse play reverse",
+            once: true,
           },
         }
       );
@@ -79,13 +78,25 @@ export function TeamFAQ() {
           scrollTrigger: {
             trigger: faqListRef.current,
             start: "top 85%",
-            end: "bottom 10%",
-            toggleActions: "play reverse play reverse",
+            once: true,
           },
         }
       );
     }
+
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 200);
+    return () => clearTimeout(timer);
   }, { scope: sectionRef });
+
+  // Recalculate trigger bounds when accordion items open or close
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 320);
+    return () => clearTimeout(timer);
+  }, [openIdx]);
 
   return (
     <section ref={sectionRef} className="py-16 sm:py-24 px-3.5 sm:px-6 lg:px-8 max-w-content mx-auto">

@@ -12,9 +12,17 @@ import {
 } from "@/components/ui/resizable-navbar";
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useRecruitment } from "@/hooks/useRecruitment";
+import { AdminNavbar } from "@/components/layout/AdminNavbar";
 
 export function Navbar() {
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/admin")) {
+    return <AdminNavbar />;
+  }
+
   const BUILDER_CENTER_URL = "https://www.meetup.com/tulas-university-dehradun/";
 
   const navItems = [

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -11,7 +11,7 @@ import type { DbEvent, DbPortalConfig, AdminParticipantRow, DbTeamMember } from 
 import { formatFullName, cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
-  Award,
+  ArrowRight,
   Calendar,
   Clock,
   User,
@@ -46,7 +46,10 @@ import {
   Table2,
   AlertCircle,
   AlertTriangle,
+  LayoutDashboard,
 } from "lucide-react";
+
+export type AdminTab = "overview" | "events" | "registrations" | "team" | "settings";
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatDate(iso?: string | null): string {
@@ -92,8 +95,44 @@ function getInitials(name: string): string {
 }
 
 // ── Main Admin Page ───────────────────────────────────────────
-export default function AdminPage() {
+function AdminPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Navigation State
+  const [activeTab, setActiveTabState] = useState<AdminTab>("overview");
+
+  const setActiveTab = useCallback((tab: AdminTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState({}, "", url.toString());
+      window.dispatchEvent(new CustomEvent("admin-tab-change", { detail: tab }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as AdminTab | null;
+    if (
+      tabParam &&
+      ["overview", "events", "registrations", "team", "settings"].includes(tabParam)
+    ) {
+      setActiveTabState(tabParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<AdminTab>;
+      if (customEvent.detail) {
+        setActiveTabState(customEvent.detail);
+      }
+    };
+    window.addEventListener("admin-tab-change", handler);
+    return () => window.removeEventListener("admin-tab-change", handler);
+  }, []);
+
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [portalConfig, setPortalConfig] = useState<DbPortalConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -130,6 +169,15 @@ export default function AdminPage() {
   // Section B — Participant inspection state
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [inspectingEventId, setInspectingEventId] = useState<string | null>(null);
+
+  // Auto-select active event if none selected
+  useEffect(() => {
+    if (!selectedEventId && events.length > 0) {
+      const defaultId = portalConfig?.active_event_id || events[0].id;
+      setSelectedEventId(defaultId);
+      setInspectingEventId(defaultId);
+    }
+  }, [selectedEventId, events, portalConfig]);
   const attendeesSectionRef = useRef<HTMLElement | null>(null);
   const [participants, setParticipants] = useState<AdminParticipantRow[]>([]);
   const [totalAttended, setTotalAttended] = useState<number>(0);
@@ -485,13 +533,14 @@ export default function AdminPage() {
 
   // ── Inspect Attendees Handler ─────────────────────────────
   const handleInspectAttendees = (eventId: string) => {
-    if (inspectingEventId === eventId) {
+    if (inspectingEventId === eventId && activeTab === "registrations") {
       setInspectingEventId(null);
       setSelectedEventId("");
       return;
     }
     setInspectingEventId(eventId);
     setSelectedEventId(eventId);
+    setActiveTab("registrations");
     setTimeout(() => {
       attendeesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
@@ -744,7 +793,7 @@ export default function AdminPage() {
   const handleDeleteTeamMember = (member: DbTeamMember) => {
     showConfirm({
       title: "Remove Team Member",
-      message: `Are you sure you want to remove "${member.name}" from Batch ${member.batch || "2026-27"}?\n\nThis will permanently delete their profile from the team roster.`,
+      message: `Are you sure you want to remove "${member.name}" from Batch ${member.batch || "2026-27"}?\n\nThis will permanently delete their profile from the team .`,
       confirmLabel: "Remove Member",
       variant: "danger",
       onConfirm: async () => {
@@ -1118,7 +1167,9 @@ export default function AdminPage() {
   };
 
   const activeEvent = events.find((e) => e.id === portalConfig?.active_event_id);
-  const currentViewEvent = events.find((e) => e.id === selectedEventId);
+  const currentViewEvent =
+    events.find((e) => e.id === selectedEventId) ||
+    (events.length > 0 ? events[0] : undefined);
 
   // Available course filters
   const courseOptions = useMemo(() => {
@@ -1167,11 +1218,32 @@ export default function AdminPage() {
     >
       {/* ── Main Operations Container ───────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-28 sm:pt-36 space-y-10">
-        {/* ── Top Bar (Sign Out Only) ───────────────────────── */}
-        <div className="flex items-center justify-end">
+        {/* ── Top Bar: Admin Portal Heading & Sign Out ───────────────────────── */}
+        <div className="flex items-center justify-between gap-4 pb-6 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#6C63FF]/20 via-[#6C63FF]/10 to-[#FF9900]/10 border border-white/[0.1] flex items-center justify-center text-[#A78BFA] shadow-[0_0_20px_rgba(108,99,255,0.15)] shrink-0">
+              <ShieldCheck className="w-5 h-5 text-[#A78BFA]" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-display text-white tracking-tight truncate">
+                  Admin Portal
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-[#6C63FF]/10 text-[#A78BFA] border border-[#6C63FF]/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Console
+                </span>
+              </div>
+              <p className="text-xs text-[#71717A] mt-0.5 truncate hidden sm:block">
+                AWS Student Builder Group &bull; Operations &amp; Management Cockpit
+              </p>
+            </div>
+          </div>
+
           <button
             onClick={handleLogout}
-            className="h-9 px-3.5 rounded-xl text-xs font-medium text-[#71717A] hover:text-red-400 hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/20 transition-all flex items-center gap-2 cursor-pointer bg-white/[0.02]"
+            className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs font-medium text-[#71717A] hover:text-red-400 hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/20 transition-all flex items-center gap-2 cursor-pointer bg-white/[0.02] shrink-0"
+            title="Sign Out of Admin Portal"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
@@ -1194,63 +1266,577 @@ export default function AdminPage() {
         ) : (
           <>
             {/* ══════════════════════════════════════════════════ */}
+            {/* ── OVERVIEW: EXECUTIVE SUMMARY OF ALL TABS ─────── */}
+            {/* ══════════════════════════════════════════════════ */}
+            {activeTab === "overview" && (
+              <section className="space-y-6">
+                {/* Executive KPI Bar */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* KPI 1: Events */}
+                  <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg group hover:border-[#6C63FF]/30 transition-all">
+                    <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex flex-col justify-between h-full space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A]">
+                          Events Catalog
+                        </span>
+                        <div className="w-8 h-8 rounded-lg bg-[#6C63FF]/10 border border-[#6C63FF]/20 flex items-center justify-center text-[#A78BFA]">
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-2xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+                          {events.length}
+                        </p>
+                        <p className="text-xs text-[#A1A1AA] mt-0.5 truncate">
+                          {activeEvent ? `Active: ${activeEvent.name}` : "No active session"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("events")}
+                        className="text-[11px] font-medium text-[#A78BFA] hover:text-white flex items-center gap-1 transition-colors cursor-pointer pt-1"
+                      >
+                        <span>Manage events</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI 2: Registrations & Attendance */}
+                  <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg group hover:border-emerald-500/30 transition-all">
+                    <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex flex-col justify-between h-full space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A]">
+                          Live Attendance
+                        </span>
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                          <Users className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-2xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+                          {totalAttended}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              portalConfig?.attendance_enabled && activeEvent?.attendance_open
+                                ? "bg-emerald-400 animate-ping"
+                                : "bg-amber-400"
+                            }`}
+                          />
+                          <p className="text-xs text-[#A1A1AA] truncate">
+                            {portalConfig?.attendance_enabled && activeEvent?.attendance_open
+                              ? "Accepting Submissions"
+                              : "Submissions Paused"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("registrations")}
+                        className="text-[11px] font-medium text-emerald-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer pt-1"
+                      >
+                        <span>View directory</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI 3: Team  */}
+                  <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg group hover:border-cyan-500/30 transition-all">
+                    <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex flex-col justify-between h-full space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A]">
+                          Core Team
+                        </span>
+                        <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                          <GraduationCap className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-2xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+                          {teamMembers.length}
+                        </p>
+                        <p className="text-xs text-[#A1A1AA] mt-0.5 truncate">
+                          Batch {selectedTeamBatch || "2026-27"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("team")}
+                        className="text-[11px] font-medium text-cyan-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer pt-1"
+                      >
+                        <span>Manage team</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI 4: Portal Gateway */}
+                  <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg group hover:border-amber-500/30 transition-all">
+                    <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex flex-col justify-between h-full space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A]">
+                          Gateway Status
+                        </span>
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                          <SlidersHorizontal className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-lg sm:text-xl font-bold font-mono text-white tracking-tight flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              portalConfig?.attendance_enabled ? "bg-emerald-400" : "bg-zinc-500"
+                            }`}
+                          />
+                          {portalConfig?.attendance_enabled ? "LIVE ONLINE" : "DISABLED"}
+                        </p>
+                        <p className="text-xs text-[#A1A1AA] mt-0.5 truncate">
+                          Attendance Gateway
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("settings")}
+                        className="text-[11px] font-medium text-amber-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer pt-1"
+                      >
+                        <span>System settings</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2x2 Bento Summary Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Summary 1: Events Tab Summary */}
+                  <div className="p-1 rounded-[2rem] bg-white/[0.03] border border-white/[0.08] shadow-xl flex flex-col">
+                    <div className="p-6 rounded-[calc(2rem-4px)] bg-[#0E0E13] flex flex-col justify-between h-full space-y-5">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-[#6C63FF]/10 border border-[#6C63FF]/20 flex items-center justify-center text-[#6C63FF]">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-base font-bold text-white tracking-tight">Events Summary</h3>
+                              <p className="text-xs text-[#71717A]">Active and scheduled sessions</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setActiveTab("events")}
+                            className="h-8 px-3 rounded-lg text-xs font-medium text-[#A78BFA] hover:text-white bg-[#6C63FF]/10 hover:bg-[#6C63FF]/20 border border-[#6C63FF]/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Open Tab</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Active Event Highlight Box */}
+                        {activeEvent ? (
+                          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                Active Session
+                              </span>
+                              <span className="text-xs font-mono text-[#A1A1AA]">
+                                {formatDate(activeEvent.event_date)}
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-semibold text-white truncate">{activeEvent.name}</h4>
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-[#71717A]">
+                              {activeEvent.speaker_name && <span>Speaker: {activeEvent.speaker_name}</span>}
+                              {activeEvent.event_timing && <span>&bull; {activeEvent.event_timing}</span>}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-white/[0.02] border border-dashed border-white/10 text-center text-xs text-[#71717A]">
+                            No session is currently marked as active
+                          </div>
+                        )}
+
+                        {/* Recent Events List preview */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-[#71717A] block">
+                            Recent Events ({events.length})
+                          </span>
+                          <div className="space-y-1.5">
+                            {events.slice(0, 3).map((ev) => (
+                              <div
+                                key={ev.id}
+                                className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.015] border border-white/[0.04] text-xs"
+                              >
+                                <span className="font-medium text-white truncate max-w-[200px] sm:max-w-xs">
+                                  {ev.name}
+                                </span>
+                                <span className="text-[11px] font-mono text-[#71717A] shrink-0">
+                                  {formatDate(ev.event_date)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                        <span className="text-xs text-[#71717A]">{events.length} total cataloged events</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={startCreate}
+                            className="h-8 px-3 rounded-lg text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Create Event</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab("events")}
+                            className="h-8 px-3 rounded-lg text-xs font-semibold bg-[#6C63FF] hover:brightness-110 text-white transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Go to Events</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary 2: Registrations Tab Summary */}
+                  <div className="p-1 rounded-[2rem] bg-white/[0.03] border border-white/[0.08] shadow-xl flex flex-col">
+                    <div className="p-6 rounded-[calc(2rem-4px)] bg-[#0E0E13] flex flex-col justify-between h-full space-y-5">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                              <Users className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-base font-bold text-white tracking-tight">Registrations Summary</h3>
+                              <p className="text-xs text-[#71717A]">Attendance records and turnouts</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setActiveTab("registrations")}
+                            className="h-8 px-3 rounded-lg text-xs font-medium text-emerald-400 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Open Tab</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Turnout stats box */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717A] block">
+                              Active Event Checked In
+                            </span>
+                            <p className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                              {totalAttended} Students
+                            </p>
+                          </div>
+                          <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717A] block">
+                              Total Records Cached
+                            </span>
+                            <p className="text-xl font-bold font-mono text-white mt-1">
+                              {participants.length} Records
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Recent Participants preview */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-[#71717A] block">
+                            Recent Attendees ({currentViewEvent?.name || "Active Session"})
+                          </span>
+                          {participants.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {participants.slice(0, 3).map((p, idx) => (
+                                <div
+                                  key={p.rollNo || p.attendanceId || idx}
+                                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.015] border border-white/[0.04] text-xs"
+                                >
+                                  <div className="min-w-0">
+                                    <span className="font-medium text-white truncate block">{p.name}</span>
+                                    <span className="text-[10px] text-[#71717A] truncate block">{p.rollNo} &bull; {p.course || "General"}</span>
+                                  </div>
+                                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                                    Verified
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-dashed border-white/10 text-center text-xs text-[#71717A]">
+                              No attendee records loaded yet for this session
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                        <span className="text-xs text-[#71717A]">Export CSV, certificates & logs</span>
+                        <button
+                          onClick={() => setActiveTab("registrations")}
+                          className="h-8 px-3 rounded-lg text-xs font-semibold bg-emerald-500 hover:brightness-110 text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
+                        >
+                          <span>Open Attendee Directory</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary 3: Team Tab Summary */}
+                  <div className="p-1 rounded-[2rem] bg-white/[0.03] border border-white/[0.08] shadow-xl flex flex-col">
+                    <div className="p-6 rounded-[calc(2rem-4px)] bg-[#0E0E13] flex flex-col justify-between h-full space-y-5">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                              <GraduationCap className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-base font-bold text-white tracking-tight">Team Summary</h3>
+                              <p className="text-xs text-[#71717A]">Student Builder Group </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setActiveTab("team")}
+                            className="h-8 px-3 rounded-lg text-xs font-medium text-cyan-400 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Open Tab</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Team batch & size pill */}
+                        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717A] block">
+                              Active Batch
+                            </span>
+                            <p className="text-base font-bold text-white mt-0.5">
+                              {selectedTeamBatch || "2026-27"}
+                            </p>
+                          </div>
+                          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            {teamMembers.length} Members
+                          </span>
+                        </div>
+
+                        {/* Team members mini avatar row/grid */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-[#71717A] block">
+                            Core Leads &amp; Officers Preview
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {teamMembers.slice(0, 6).map((m) => (
+                              <div
+                                key={m.id}
+                                className="p-2.5 rounded-xl bg-white/[0.015] border border-white/[0.04] flex items-center gap-2.5 min-w-0"
+                              >
+                                {m.pic_url ? (
+                                  <img
+                                    src={m.pic_url}
+                                    alt={m.name}
+                                    className="w-7 h-7 rounded-lg object-cover border border-white/10 shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-mono text-[10px] flex items-center justify-center shrink-0">
+                                    {m.name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-white truncate">{m.name}</p>
+                                  <p className="text-[10px] text-[#71717A] truncate">{m.role || "Builder"}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                        <span className="text-xs text-[#71717A]">{teamMembers.length} active members</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setActiveTab("team");
+                              startCreateTeamMember();
+                            }}
+                            className="h-8 px-3 rounded-lg text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Add Member</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab("team")}
+                            className="h-8 px-3 rounded-lg text-xs font-semibold bg-cyan-500 hover:brightness-110 text-white transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Go to Team</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary 4: Settings Tab Summary */}
+                  <div className="p-1 rounded-[2rem] bg-white/[0.03] border border-white/[0.08] shadow-xl flex flex-col">
+                    <div className="p-6 rounded-[calc(2rem-4px)] bg-[#0E0E13] flex flex-col justify-between h-full space-y-5">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                              <SlidersHorizontal className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-base font-bold text-white tracking-tight">Settings Summary</h3>
+                              <p className="text-xs text-[#71717A]">Portal gateway &amp; hardware controls</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setActiveTab("settings")}
+                            className="h-8 px-3 rounded-lg text-xs font-medium text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Open Tab</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Gateway status preview */}
+                        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-white">Attendance Gateway</span>
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                                portalConfig?.attendance_enabled
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
+                              }`}
+                            >
+                              {portalConfig?.attendance_enabled ? "Accepting Submissions" : "Disabled"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-[#71717A]">
+                            <span>Bound Active Event:</span>
+                            <span className="font-mono text-white truncate max-w-[180px]">
+                              {activeEvent?.name || "None Selected"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Quick links box */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-[#71717A] block">
+                            Direct Public Portal Links
+                          </span>
+                          <div className="space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                              <span className="text-[#A1A1AA] truncate">Student Check-in: <code className="text-[#6C63FF]">/attendance</code></span>
+                              <button
+                                onClick={() => {
+                                  if (typeof window !== "undefined") {
+                                    navigator.clipboard.writeText(`${window.location.origin}/attendance`);
+                                    toast.success("Attendance link copied to clipboard!");
+                                  }
+                                }}
+                                className="text-[11px] font-mono text-[#A78BFA] hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>Copy</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                              <span className="text-[#A1A1AA] truncate">Certificate Verification: <code className="text-[#6C63FF]">/verify</code></span>
+                              <Link
+                                href="/verify"
+                                target="_blank"
+                                className="text-[11px] font-mono text-[#71717A] hover:text-white flex items-center gap-1 transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Visit</span>
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                        <span className="text-xs text-[#71717A]">Hardware switches &amp; QR links</span>
+                        <button
+                          onClick={() => setActiveTab("settings")}
+                          className="h-8 px-3 rounded-lg text-xs font-semibold bg-amber-500 hover:brightness-110 text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/20"
+                        >
+                          <span>Go to Settings</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* ══════════════════════════════════════════════════ */}
             {/* ── EXECUTIVE METRIC STRIP ──────────────────────── */}
             {/* ══════════════════════════════════════════════════ */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Card 1: Active Event */}
-              <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg">
-                <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex items-center gap-4 h-full">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#6C63FF]/10 border border-[#6C63FF]/20 text-[#6C63FF] shrink-0">
-                    <Radio className="w-5 h-5 animate-pulse" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A] block">
-                      Active Portal Event
-                    </span>
-                    <p className="text-base font-bold text-white truncate mt-0.5">
-                      {activeEvent?.name || "None Configured"}
-                    </p>
-                    <span className="text-xs text-[#A1A1AA] flex items-center gap-1.5 mt-0.5">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          portalConfig?.attendance_enabled && activeEvent?.attendance_open
-                            ? "bg-emerald-400 animate-ping"
-                            : "bg-amber-400"
-                        }`}
-                      />
-                      {portalConfig?.attendance_enabled && activeEvent?.attendance_open
-                        ? "Accepting Submissions"
-                        : "Submissions Paused"}
-                    </span>
+            {activeTab === "events" && (
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Card 1: Active Event */}
+                <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg">
+                  <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex items-center gap-4 h-full">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#6C63FF]/10 border border-[#6C63FF]/20 text-[#6C63FF] shrink-0">
+                      <Radio className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A] block">
+                        Active Portal Event
+                      </span>
+                      <p className="text-base font-bold text-white truncate mt-0.5">
+                        {activeEvent?.name || "None Configured"}
+                      </p>
+                      <span className="text-xs text-[#A1A1AA] flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            portalConfig?.attendance_enabled && activeEvent?.attendance_open
+                              ? "bg-emerald-400 animate-ping"
+                              : "bg-amber-400"
+                          }`}
+                        />
+                        {portalConfig?.attendance_enabled && activeEvent?.attendance_open
+                          ? "Accepting Submissions"
+                          : "Submissions Paused"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Card 2: Total Events Managed */}
-              <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg">
-                <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex items-center gap-4 h-full">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A] block">
-                      Events Catalog
-                    </span>
-                    <p className="text-2xl font-mono font-bold text-white tracking-tight mt-0.5">
-                      {events.length}
-                    </p>
-                    <span className="text-xs text-[#A1A1AA]">
-                      Workshops &amp; webinars
-                    </span>
+                {/* Card 2: Total Events Managed */}
+                <div className="p-1 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.08] shadow-lg">
+                  <div className="p-5 rounded-[calc(1.5rem-4px)] bg-[#0D0D12] flex items-center gap-4 h-full">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-[#71717A] block">
+                        Events Catalog
+                      </span>
+                      <p className="text-2xl font-mono font-bold text-white tracking-tight mt-0.5">
+                        {events.length}
+                      </p>
+                      <span className="text-xs text-[#A1A1AA]">
+                        Workshops &amp; webinars
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION A: CURRENT ACTIVE EVENT COCKPIT ─────── */}
             {/* ══════════════════════════════════════════════════ */}
-            <section className="space-y-4">
+            {(activeTab === "settings" || activeTab === "events") && (
+              <section className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#6C63FF]/10 border border-[#6C63FF]/20 text-[10px] font-mono uppercase tracking-wider text-[#A78BFA] mb-2">
@@ -1407,12 +1993,13 @@ export default function AdminPage() {
                 </div>
               )}
             </section>
+          )}
 
-            {/* ══════════════════════════════════════════════════ */}
-            {/* ── ALL EVENTS DECK / BENTO GRID ─────────────────── */}
-            {/* ══════════════════════════════════════════════════ */}
-            {events.length > 0 && (
-              <section className="space-y-4">
+          {/* ══════════════════════════════════════════════════ */}
+          {/* ── ALL EVENTS DECK / BENTO GRID ─────────────────── */}
+          {/* ══════════════════════════════════════════════════ */}
+          {activeTab === "events" && events.length > 0 && (
+            <section className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-bold text-white tracking-tight">
@@ -1584,19 +2171,20 @@ export default function AdminPage() {
             )}
 
             {/* ══════════════════════════════════════════════════ */}
-            {/* ── SECTION B: PARTICIPANT DIRECTORY ────────────── */}
+            {/* ── SECTION B: PARTICIPANT DIRECTORY & CREDENTIALS ─ */}
             {/* ══════════════════════════════════════════════════ */}
-            {inspectingEventId && currentViewEvent && (
-              <section
-                ref={attendeesSectionRef}
-                className="space-y-5 pt-8 border-t border-white/[0.08] scroll-mt-24"
-              >
+            {activeTab === "registrations" && (
+              currentViewEvent ? (
+                <section
+                  ref={attendeesSectionRef}
+                  className="space-y-5 pt-8 border-t border-white/[0.08] scroll-mt-24"
+                >
                 {/* Header with Title & Event Context Selector */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono uppercase tracking-wider text-emerald-400 mb-2">
                       <Users className="w-3 h-3 text-emerald-400" />
-                      <span>Attendance Records &amp; Credentials</span>
+                      <span>Attendance Records &amp; Directory</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2.5">
                       <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
@@ -1607,7 +2195,7 @@ export default function AdminPage() {
                       </span>
                     </div>
                     <p className="text-xs text-[#71717A] mt-1">
-                      Official student attendance submissions and issued credentials for this session
+                      Official student attendance submissions, registration records, and credential management for this session.
                     </p>
                   </div>
 
@@ -1657,17 +2245,6 @@ export default function AdminPage() {
                     </button>
 
                     {/* Close Inspector Button */}
-                    <button
-                      onClick={() => {
-                        setInspectingEventId(null);
-                        setSelectedEventId("");
-                      }}
-                      title="Hide Attendees List"
-                      className="h-10 px-3.5 rounded-xl text-xs font-medium whitespace-nowrap text-[#A1A1AA] hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <X className="w-4 h-4 text-[#71717A]" />
-                      <span>Close</span>
-                    </button>
                   </div>
                 </div>
 
@@ -1888,12 +2465,33 @@ export default function AdminPage() {
                 </div>
               </div>
             </section>
-          )}
+              ) : (
+                <div className="p-12 text-center rounded-[2rem] bg-white/[0.02] border border-white/10 space-y-4">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#71717A]">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-semibold text-white">No Events Available</h3>
+                    <p className="text-xs text-[#71717A] max-w-sm mx-auto">
+                      Create an event first in the Events tab to view attendee registrations.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("events")}
+                    className="h-9 px-4 rounded-xl text-xs font-semibold bg-[#6C63FF] hover:brightness-110 text-white transition-all cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Go to Events Catalog</span>
+                  </button>
+                </div>
+              )
+            )}
 
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION C: TEAM MEMBERS MANAGEMENT ────────── */}
             {/* ══════════════════════════════════════════════════ */}
-            <section className="space-y-6 pt-8 border-t border-white/[0.08]">
+            {activeTab === "team" && (
+              <section className="space-y-6 pt-8 border-t border-white/[0.08]">
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -1988,7 +2586,7 @@ export default function AdminPage() {
               {loadingTeamMembers ? (
                 <div className="flex flex-col items-center justify-center py-24 space-y-3">
                   <div className="w-7 h-7 rounded-full border-2 border-cyan-500/30 border-t-cyan-500 animate-spin" />
-                  <p className="text-xs text-[#71717A] font-mono">Loading team roster…</p>
+                  <p className="text-xs text-[#71717A] font-mono">Loading team …</p>
                 </div>
               ) : groupedTeamMembers.length === 0 ? (
                 <div className="p-1 rounded-[2rem] bg-white/[0.03] border border-dashed border-white/10">
@@ -2008,7 +2606,7 @@ export default function AdminPage() {
                         ? "Try clearing your search query."
                         : `Start building your ${
                             selectedTeamBatch !== "ALL" ? selectedTeamBatch : "team"
-                          } roster by adding your first member.`}
+                          }  by adding your first member.`}
                     </p>
                     <button
                       onClick={() =>
@@ -2222,9 +2820,10 @@ export default function AdminPage() {
                 </div>
               )}
             </section>
-          </>
-        )}
-      </main>
+          )}
+        </>
+      )}
+    </main>
 
       {/* ══════════════════════════════════════════════════ */}
       {/* ── CREATE / EDIT EVENT MODAL (FROSTED GLASS) ───── */}
@@ -3321,5 +3920,13 @@ export default function AdminPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminPageContent />
+    </Suspense>
   );
 }

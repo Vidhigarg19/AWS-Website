@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
-import { createClient } from "@/lib/supabase/client";
+// papaparse (~6 KB), xlsx (~135 KB) and the Supabase browser client (~48 KB) are
+// loaded on demand inside the handlers that need them, so they are not part of
+// the /admin first-load bundle.
 import type { DbEvent, DbPortalConfig, AdminParticipantRow, DbTeamMember } from "@/types/certificate";
 import { formatFullName, cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -358,6 +358,7 @@ function AdminPageContent() {
 
   // ── Auth ──────────────────────────────────────────────────
   const handleLogout = async () => {
+    const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
@@ -851,9 +852,10 @@ function AdminPageContent() {
     setBulkImportFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = e.target?.result;
+        const XLSX = await import("xlsx");
         const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
@@ -1069,7 +1071,7 @@ function AdminPageContent() {
   }, [teamMembers, selectedTeamBatch, teamSearch]);
 
   // ── Export Participants to CSV ────────────────────────────
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (participants.length === 0) {
       toast.error("No attendee records available to export");
       return;
@@ -1090,6 +1092,7 @@ function AdminPageContent() {
         : "N/A",
     }));
 
+    const Papa = (await import("papaparse")).default;
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -3758,9 +3761,10 @@ function AdminPageContent() {
                   href="/team-import-template.xlsx"
                   download
                   className="h-9 px-3.5 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] transition-all flex items-center gap-1.5 cursor-pointer"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     // Generate a template in-browser instead of fetching a file
                     e.preventDefault();
+                    const XLSX = await import("xlsx");
                     const targetBatch = bulkImportBatch || (selectedTeamBatch !== "ALL" ? selectedTeamBatch : "2026-27");
                     const ws = XLSX.utils.aoa_to_sheet([
                       ["name", "course", "branch", "year", "role", "batch", "pic_url"],

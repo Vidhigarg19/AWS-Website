@@ -5,9 +5,12 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
-import MagicRings from "@/components/ui/magic-rings";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
 import { Spotlight } from "@/components/ui/spotlight";
+import dynamic from "next/dynamic";
+
+// three.js (~130 KB gzip) is decorative here: load it after hydration instead of in the first-load bundle.
+const MagicRings = dynamic(() => import("@/components/ui/magic-rings"), { ssr: false });
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 

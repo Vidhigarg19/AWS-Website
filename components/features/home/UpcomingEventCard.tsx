@@ -20,7 +20,7 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 const MEETUP_URL = "https://www.meetup.com/tulas-university-dehradun/";
 
 /** Formats YYYY-MM-DD into display date and day of week */
-function parseEventDate(iso: string) {
+function parseEventDate(iso: string | null) {
   if (!iso || iso.trim() === "") {
     return { formatted: "Announcing Soon", dayOfWeek: "Stay Tuned" };
   }
@@ -254,7 +254,7 @@ export default function UpcomingEventCard() {
             {/* Peeking AWS Cloud Mascot (Positioned between upcoming event label and Register button) */}
             <div className="absolute -top-16 sm:-top-24 md:-top-28 right-36 sm:right-52 md:right-64 lg:right-72 w-24 sm:w-32 md:w-36 z-20 pointer-events-none select-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
               <Image
-                src="/chatbotmascot.png"
+                src="/chatbotmascot.webp"
                 alt="AWS Builder Mascot"
                 width={200}
                 height={200}

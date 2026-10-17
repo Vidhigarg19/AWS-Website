@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import LightRays from "@/components/ui/light-rays";
 
 import { TeamHero } from "./TeamHero";
 import { TeamSelectionRoadmap } from "./TeamSelectionRoadmap";
@@ -10,6 +9,10 @@ import { TeamLeadership } from "./TeamLeadership";
 import { TeamMembersDirectory } from "./TeamMembersDirectory";
 import { TeamFAQ } from "./TeamFAQ";
 import { TeamCTA } from "./TeamCTA";
+import dynamic from "next/dynamic";
+
+// WebGL background (ogl) is decorative: load it after hydration instead of in the first-load bundle.
+const LightRays = dynamic(() => import("@/components/ui/light-rays"), { ssr: false });
 
 export function Team() {
   return (

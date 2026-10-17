@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, Search, Award, CheckCircle, ArrowRight } from "lucide-react";
-import { isValidCertificateIdFormat } from "@/lib/certificates/id-generator";
+import { isValidCertificateIdFormat } from "@/lib/certificates/id-format";
 
 export default function CertificateSearchPage() {
   const router = useRouter();

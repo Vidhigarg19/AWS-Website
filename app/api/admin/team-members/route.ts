@@ -3,6 +3,7 @@
 // POST /api/admin/team-members      — Create a new team member
 // ============================================================
 
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse, DbTeamMember, AdminTeamMemberRequest } from "@/types/certificate";
@@ -12,6 +13,9 @@ import type { ApiResponse, DbTeamMember, AdminTeamMemberRequest } from "@/types/
  * Optional query parameter ?batch=2026-27 filters by batch.
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(
@@ -49,6 +53,9 @@ export async function GET(request: NextRequest) {
  * POST: Creates a new team member.
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(

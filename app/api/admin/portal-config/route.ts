@@ -3,11 +3,15 @@
 // PUT  /api/admin/portal-config — Update portal config
 // ============================================================
 
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse, DbPortalConfig } from "@/types/certificate";
 
 export async function GET() {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(
@@ -33,6 +37,9 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(

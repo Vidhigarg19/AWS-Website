@@ -4,6 +4,7 @@
 // Excel/CSV on the client side and bulk-inserts them.
 // ============================================================
 
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse, DbTeamMember } from "@/types/certificate";
@@ -20,6 +21,9 @@ interface BulkImportMember {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(

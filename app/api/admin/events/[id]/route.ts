@@ -3,6 +3,7 @@
 // GET /api/admin/events/[id]  — Get a single event
 // ============================================================
 
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse, DbEvent, AdminEventRequest } from "@/types/certificate";
@@ -14,6 +15,9 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(
@@ -47,6 +51,9 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(
@@ -146,6 +153,9 @@ export async function DELETE(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(

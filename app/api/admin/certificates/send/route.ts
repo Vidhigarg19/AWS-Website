@@ -13,6 +13,7 @@
 //
 // ============================================================
 
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
@@ -27,6 +28,9 @@ interface SendCertificateBody {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   try {
     let body: SendCertificateBody;
     try {

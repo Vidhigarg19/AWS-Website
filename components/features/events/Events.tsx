@@ -152,17 +152,17 @@ function EventCard({ event }: { event: Event }) {
       }`}
       spotlightColor={
         isCurrent
+          ? "rgba(167, 139, 250, 0.025)"
+          : isPast
+          ? "rgba(113, 113, 122, 0.01)"
+          : "rgba(192, 132, 252, 0.015)"
+      }
+      borderColor={
+        isCurrent
           ? "rgba(167, 139, 250, 0.08)"
           : isPast
           ? "rgba(113, 113, 122, 0.03)"
           : "rgba(192, 132, 252, 0.05)"
-      }
-      borderColor={
-        isCurrent
-          ? "rgba(167, 139, 250, 0.3)"
-          : isPast
-          ? "rgba(113, 113, 122, 0.1)"
-          : "rgba(192, 132, 252, 0.15)"
       }
     >
       {/* Top ambient glow for Up Next event */}
@@ -505,19 +505,6 @@ export function Events() {
                 <span>Free Student Access</span>
               </div>
             </div>
-
-            {/* Meetup Action Row */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
-              <a
-                href={MEETUP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.1] hover:border-primary/40 transition-all cursor-pointer"
-              >
-                <span>Join Group on Meetup</span>
-                <ExternalLink className="w-3.5 h-3.5 text-primary-light" />
-              </a>
-            </div>
           </div>
 
           {/* Right Column: Stylish, Bigger Live Countdown Command Stage */}
@@ -525,8 +512,8 @@ export function Events() {
             {nextEvent && hasConcreteDate(nextEvent) ? (
               <SpotlightCard
                 className="relative overflow-hidden rounded-[2rem] border border-primary/30 bg-gradient-to-b from-[#12111A]/90 to-[#0A0A0F]/90 p-6 sm:p-7 shadow-[0_20px_60px_-15px_rgba(108,99,255,0.25)] backdrop-blur-xl ring-1 ring-white/10"
-                spotlightColor="rgba(167, 139, 250, 0.12)"
-                borderColor="rgba(192, 132, 252, 0.25)"
+                spotlightColor="rgba(167, 139, 250, 0.03)"
+                borderColor="rgba(192, 132, 252, 0.08)"
               >
                 {/* Ambient Top Glow */}
                 <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-28 w-60 rounded-full bg-primary/30 blur-3xl" />
@@ -574,12 +561,12 @@ export function Events() {
                     <AnimatedCountdown
                       targetDate={nextEvent.isoDate}
                       variant="modern"
-                      size="lg"
+                      size="md"
                       completionMessage="🎉 The event is live now!"
-                      containerClassName="bg-black/40 border-white/[0.08] backdrop-blur-md justify-center sm:justify-start"
-                      unitClassName="bg-white/[0.035] border-white/10 hover:border-primary/40 hover:bg-white/[0.06] min-w-[4.8rem] sm:min-w-[5.4rem] py-3.5"
-                      numberClassName="text-3xl sm:text-4xl font-bold font-mono tracking-tight text-white"
-                      labelClassName="text-[10px] uppercase font-mono tracking-wider text-muted font-semibold"
+                      containerClassName="w-full bg-black/40 border-white/[0.08] backdrop-blur-md p-2 sm:p-2.5"
+                      unitClassName="bg-white/[0.035] border-white/10 hover:border-primary/40 hover:bg-white/[0.06] min-w-0 flex-1 py-2.5 sm:py-3 px-1 sm:px-2"
+                      numberClassName="text-2xl sm:text-3xl lg:text-4xl font-bold font-mono tracking-tight text-white"
+                      labelClassName="text-[8.5px] sm:text-[9.5px] uppercase font-mono tracking-wider text-muted font-semibold"
                       accentClassName="via-primary/50"
                     />
                   </div>
@@ -602,8 +589,8 @@ export function Events() {
               /* Fallback Stage when no future countdown target is set */
               <SpotlightCard
                 className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-bg-card/70 p-6 sm:p-8 backdrop-blur-xl"
-                spotlightColor="rgba(167, 139, 250, 0.08)"
-                borderColor="rgba(192, 132, 252, 0.15)"
+                spotlightColor="rgba(167, 139, 250, 0.02)"
+                borderColor="rgba(192, 132, 252, 0.05)"
               >
                 <div className="space-y-4">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary-light">

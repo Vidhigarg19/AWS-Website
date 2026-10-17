@@ -21,6 +21,10 @@ export default function SmoothScroll({
       autoRaf: false, // We'll handle requestAnimationFrame via GSAP ticker
     });
 
+    if (typeof window !== "undefined") {
+      (window as any).__lenis = lenis;
+    }
+
     lenis.on("scroll", ScrollTrigger.update);
 
     // Sync GSAP ticker with Lenis
@@ -31,7 +35,23 @@ export default function SmoothScroll({
     gsap.ticker.add(update);
     gsap.ticker.lagSmoothing(0);
 
+    // Keep Lenis and ScrollTrigger in sync whenever dynamic content modifies document height
+    let resizeTimer: NodeJS.Timeout;
+    const resizeObserver = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        lenis.resize();
+        ScrollTrigger.refresh();
+      }, 100);
+    });
+
+    if (typeof document !== "undefined" && document.body) {
+      resizeObserver.observe(document.body);
+    }
+
     return () => {
+      clearTimeout(resizeTimer);
+      resizeObserver.disconnect();
       lenis.destroy();
       gsap.ticker.remove(update);
     };

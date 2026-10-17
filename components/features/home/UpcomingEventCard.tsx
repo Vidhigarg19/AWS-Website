@@ -3,6 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Calendar,
   Clock,
@@ -12,10 +15,15 @@ import {
 } from "lucide-react";
 import type { ApiResponse, DbEvent } from "@/types/certificate";
 
+gsap.registerPlugin(useGSAP, ScrollTrigger);
+
 const MEETUP_URL = "https://www.meetup.com/tulas-university-dehradun/";
 
 /** Formats YYYY-MM-DD into display date and day of week */
 function parseEventDate(iso: string) {
+  if (!iso || iso.trim() === "") {
+    return { formatted: "Announcing Soon", dayOfWeek: "Stay Tuned" };
+  }
   try {
     const d = new Date(iso + "T00:00:00");
     if (isNaN(d.getTime())) {
@@ -56,6 +64,7 @@ const DEFAULT_PAST_EVENTS = [
 ];
 
 export default function UpcomingEventCard() {
+  const containerRef = React.useRef<HTMLElement>(null);
   const [upcomingEvent, setUpcomingEvent] = React.useState<DbEvent | null>(null);
   const [pastEvents, setPastEvents] = React.useState<
     { title: string; date: string; image: string }[]
@@ -133,15 +142,71 @@ export default function UpcomingEventCard() {
     };
   }, []);
 
-  if (loading || !upcomingEvent) return null;
+  // Recalculate ScrollTrigger markers when data finishes updating
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        ScrollTrigger.refresh();
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [upcomingEvent, pastEvents]);
 
-  const event = upcomingEvent;
+  // GSAP Entrance Animations
+  useGSAP(
+    () => {
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+      gsap.from(".upcoming-header-el", {
+        opacity: 0,
+        y: 16,
+        stagger: 0.08,
+        duration: 0.5,
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: ".upcoming-header",
+          start: isMobile ? "top 95%" : "top 90%",
+          toggleActions: "play none none none",
+          once: true,
+        },
+      });
+
+      gsap.from(".upcoming-featured-card", {
+        opacity: 0,
+        y: 20,
+        duration: 0.6,
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: ".upcoming-featured-card",
+          start: isMobile ? "top 95%" : "top 90%",
+          toggleActions: "play none none none",
+          once: true,
+        },
+      });
+    },
+    { scope: containerRef }
+  );
+
+  const isFallback = !upcomingEvent;
+
+  // Use real database upcoming event if available, or fallback community announcement
+  const event = upcomingEvent || {
+    id: "aws-upcoming-session",
+    name: "Next AWS Event in the Works",
+    description:
+      "We are cooking up our next hands-on AWS Event Session and hackathon. Join our Meetup group to get notified the second registrations open!",
+    event_date: "",
+    event_timing: "To Be Announced",
+    speaker_name: "AWS Student Builder Group",
+    attendance_open: false,
+  };
 
   const { formatted: eventDateFormatted, dayOfWeek: eventDayOfWeek } =
     parseEventDate(event.event_date ?? "");
 
   return (
     <section
+      ref={containerRef}
       aria-label="Community Events Showcase"
       className="relative w-full bg-[#08080d] py-12 sm:py-20 overflow-hidden select-none"
     >
@@ -162,8 +227,8 @@ export default function UpcomingEventCard() {
 
         <div className="relative">
           {/* Section Header Left */}
-          <div className="max-w-2xl mb-8 sm:mb-12">
-            <div className="inline-flex items-center gap-2 mb-2 sm:mb-3">
+          <div className="upcoming-header max-w-2xl mb-8 sm:mb-12">
+            <div className="upcoming-header-el inline-flex items-center gap-2 mb-2 sm:mb-3">
               <span className="w-2.5 h-2.5 rounded-sm bg-primary-light" />
               <span className="text-[11px] sm:text-xs font-mono uppercase tracking-[0.18em] text-white/70 font-semibold">
                 UPCOMING EVENT
@@ -171,33 +236,34 @@ export default function UpcomingEventCard() {
               <span className="w-8 sm:w-12 h-px bg-white/20" />
             </div>
 
-            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="upcoming-header-el font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
               What&apos;s{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-light via-purple-300 to-accent">
                 Next?
               </span>
             </h2>
 
-            <p className="text-sm sm:text-base text-white/65 mt-2.5 max-w-xl leading-relaxed">
+            <p className="upcoming-header-el text-sm sm:text-base text-white/65 mt-2.5 max-w-xl leading-relaxed">
               Join our upcoming event and be part of hands-on learning, engaging
               sessions and a growing community of builders.
             </p>
           </div>
 
-          {/* Peeking AWS Cloud Mascot (Positioned above top-right border of card) */}
-          <div className="absolute -top-16 sm:-top-24 md:-top-28 right-4 sm:right-12 md:right-20 w-28 sm:w-36 md:w-44 z-20 pointer-events-none select-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
-            <Image
-              src="/chatbotmascot.png"
-              alt="AWS Builder Mascot"
-              width={240}
-              height={240}
-              className="w-full h-auto object-contain"
-              priority
-            />
-          </div>
-
           {/* ── THE FEATURED UPCOMING EVENT CARD ── */}
-          <div className="relative rounded-[2rem] border border-primary/30 bg-gradient-to-br from-[#12101E]/95 via-[#0C0B15]/95 to-[#08070F]/95 p-5 sm:p-7 md:p-8 backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(124,58,237,0.25)] ring-1 ring-white/10 overflow-hidden">
+          <div className="upcoming-featured-card relative mt-8 sm:mt-12">
+            {/* Peeking AWS Cloud Mascot (Positioned between upcoming event label and Register button) */}
+            <div className="absolute -top-16 sm:-top-24 md:-top-28 right-36 sm:right-52 md:right-64 lg:right-72 w-24 sm:w-32 md:w-36 z-20 pointer-events-none select-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
+              <Image
+                src="/chatbotmascot.png"
+                alt="AWS Builder Mascot"
+                width={200}
+                height={200}
+                className="w-full h-auto object-contain"
+                priority
+              />
+            </div>
+
+            <div className="relative rounded-[2rem] border border-primary/30 bg-gradient-to-br from-[#12101E]/95 via-[#0C0B15]/95 to-[#08070F]/95 p-5 sm:p-7 md:p-8 backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(124,58,237,0.25)] ring-1 ring-white/10 overflow-hidden">
             {/* Top ambient highlight gradient line */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
             <div className="pointer-events-none absolute -top-24 left-1/3 h-48 w-80 rounded-full bg-primary/20 blur-3xl" />
@@ -212,6 +278,7 @@ export default function UpcomingEventCard() {
                       src="https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80"
                       alt="Event Stage Atmosphere"
                       fill
+                      sizes="(max-width: 1024px) 100vw, 40vw"
                       className="object-cover opacity-25 group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#080511] via-[#100C22]/80 to-transparent" />
@@ -234,8 +301,14 @@ export default function UpcomingEventCard() {
                       </div>
                     </div>
 
-                    <div className="w-7 h-7 rounded-full border border-white/20 bg-white/[0.05] flex items-center justify-center text-white/80 group-hover:border-primary-light group-hover:text-white transition-colors">
-                      <ArrowRight className="w-3.5 h-3.5" />
+                    <div className="w-7 h-7 rounded-full border border-primary/30 bg-white/[0.05] p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                      <Image
+                        src="/logos/SBG_logo.png"
+                        alt="AWS Builder Logo"
+                        width={20}
+                        height={20}
+                        className="w-full h-full object-contain"
+                      />
                     </div>
                   </div>
 
@@ -248,7 +321,7 @@ export default function UpcomingEventCard() {
                       {event.name}
                     </div>
                     <div className="mt-2.5 inline-block px-3 py-1 rounded-full border border-primary/30 text-[9.5px] font-mono tracking-widest uppercase text-white/90 bg-primary/20 backdrop-blur-md font-semibold">
-                      OFFICIAL COMMUNITY EVENT
+                      {isFallback ? "ANNOUNCING SOON" : "OFFICIAL COMMUNITY EVENT"}
                     </div>
                   </div>
 
@@ -269,7 +342,7 @@ export default function UpcomingEventCard() {
                   <div className="flex items-center gap-2 text-primary-light">
                     <Calendar className="w-4 h-4" />
                     <span className="text-[11px] sm:text-xs font-mono uppercase font-bold tracking-wider">
-                      UPCOMING EVENT
+                      {isFallback ? "COMMUNITY ANNOUNCEMENT" : "UPCOMING EVENT"}
                     </span>
                   </div>
 
@@ -280,7 +353,7 @@ export default function UpcomingEventCard() {
                     rel="noopener noreferrer"
                     className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#6C63FF] via-[#7C3AED] to-[#8B5CF6] hover:brightness-110 text-white text-xs sm:text-sm font-bold tracking-wide shadow-lg shadow-[#7C3AED]/30 transition-all hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
                   >
-                    <span>Register Now</span>
+                    <span>{isFallback ? "Join on Meetup" : "Register Now"}</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </a>
                 </div>
@@ -352,12 +425,13 @@ export default function UpcomingEventCard() {
             </div>
           </div>
         </div>
+      </div>
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── BOTTOM SECTION: "Moments from Our Journey." (PAST EVENTS) ─── */}
         {/* ════════════════════════════════════════════════════════════════ */}
 
-        <div className="mt-12 sm:mt-16 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        <div className="upcoming-past-section mt-12 sm:mt-16 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Left Title Block */}
           <div className="lg:col-span-3 flex flex-col justify-center space-y-2">
             <div className="inline-flex items-center gap-2">

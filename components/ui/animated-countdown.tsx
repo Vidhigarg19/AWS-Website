@@ -72,22 +72,22 @@ const unitVariantClasses: Record<CountdownVariant, string> = {
 
 const sizeClasses: Record<CountdownSize, { container: string; unit: string; number: string; label: string }> = {
   sm: {
-    container: "gap-2 p-2",
-    unit: "min-w-[4.25rem] rounded-xl px-3 py-3",
-    number: "text-2xl",
-    label: "text-[10px]",
+    container: "gap-1.5 p-2",
+    unit: "min-w-0 rounded-xl px-1.5 py-2 sm:px-2.5 sm:py-2.5",
+    number: "text-lg sm:text-xl",
+    label: "text-[8px] sm:text-[9px]",
   },
   md: {
-    container: "gap-2.5 p-2.5 sm:gap-3 sm:p-3",
-    unit: "min-w-[4.8rem] rounded-2xl px-3.5 py-4 sm:min-w-[5.6rem] sm:px-4",
-    number: "text-3xl sm:text-4xl",
-    label: "text-[10px] sm:text-[11px]",
+    container: "gap-1.5 p-2 sm:gap-2 sm:p-2.5",
+    unit: "min-w-0 rounded-xl sm:rounded-2xl px-1.5 py-2.5 sm:px-3 sm:py-3",
+    number: "text-xl sm:text-2xl md:text-3xl",
+    label: "text-[9px] sm:text-[10px]",
   },
   lg: {
-    container: "gap-3 p-3 sm:gap-4 sm:p-4",
-    unit: "min-w-[5.2rem] rounded-2xl px-4 py-4 sm:min-w-[6.5rem] sm:px-5 sm:py-5",
-    number: "text-4xl sm:text-5xl",
-    label: "text-[11px] sm:text-xs",
+    container: "gap-2 p-2 sm:gap-2.5 sm:p-3",
+    unit: "min-w-0 rounded-xl sm:rounded-2xl px-2 py-3 sm:px-3.5 sm:py-3.5",
+    number: "text-2xl sm:text-3xl md:text-4xl",
+    label: "text-[9.5px] sm:text-[10.5px]",
   },
 };
 
@@ -194,7 +194,7 @@ function CountdownUnit({
       transition={{ delay: reduceMotion ? 0 : index * 0.055, duration: 0.35, ease: "easeOut" }}
       whileHover={reduceMotion ? undefined : { y: -3 }}
       className={cn(
-        "relative flex flex-col items-center justify-center overflow-hidden border text-center",
+        "relative flex flex-col items-center justify-center overflow-hidden border text-center min-w-0 w-full",
         unitVariantClasses[variant],
         sizePreset.unit,
         unitClassName,
@@ -313,8 +313,15 @@ export function AnimatedCountdown({
     >
       <div
         className={cn(
-          "flex max-w-full flex-row flex-nowrap items-stretch gap-2 justify-center",
-          showSeparators && "gap-0",
+          "grid max-w-full items-stretch gap-1.5 sm:gap-2.5 w-full",
+          visibleUnits.length === 4
+            ? "grid-cols-4"
+            : visibleUnits.length === 3
+            ? "grid-cols-3"
+            : visibleUnits.length === 2
+            ? "grid-cols-2"
+            : "grid-cols-1",
+          showSeparators && "gap-0 sm:gap-0",
         )}
       >
         {visibleUnits.map((unit, index) => (

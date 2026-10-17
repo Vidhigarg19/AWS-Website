@@ -67,8 +67,8 @@ export function SuggestEventSection() {
     <section className="suggest-event-container mt-16 sm:mt-20 w-full max-w-2xl mx-auto">
       <SpotlightCard
         className="border-primary/20 bg-bg-card/70 backdrop-blur-xl shadow-2xl"
-        spotlightColor="rgba(167, 139, 250, 0.04)"
-        borderColor="rgba(192, 132, 252, 0.12)"
+        spotlightColor="rgba(167, 139, 250, 0.02)"
+        borderColor="rgba(192, 132, 252, 0.05)"
       >
         <div className="p-5 sm:p-8 lg:p-10">
           {/* Header */}

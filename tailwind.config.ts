@@ -55,7 +55,6 @@ const config: Config = {
         sans: ["var(--font-poppins)", "sans-serif"],
         display: ["var(--font-poppins)", "sans-serif"],
         body: ["var(--font-poppins)", "sans-serif"],
-        podium: ['"FSP DEMO - PODIUM Sharp 4.11"', "sans-serif"],
         inter: ["Inter", "sans-serif"],
         "pixel-square": ["var(--font-geist-pixel-square)", "sans-serif"],
         "pixel-grid": ["var(--font-geist-pixel-grid)", "sans-serif"],

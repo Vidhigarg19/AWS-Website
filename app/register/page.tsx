@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { MultiStepLoader as Loader } from "@/components/ui/multi-step-loader";
 import { useRecruitment } from "@/hooks/useRecruitment";
 import { ClosedRegistrations } from "@/components/recruitment/ClosedRegistrations";
-import LightRays from "@/components/ui/light-rays";
 import CursorGrid from "@/components/ui/cursor-grid";
 import { ThemeStyles } from "@/components/features/register/ThemeStyles";
 import { SuccessScreen } from "@/components/features/register/SuccessScreen";
@@ -26,6 +25,10 @@ import {
   UploadCloud,
   Sparkles,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// WebGL background (ogl) is decorative: load it after hydration instead of in the first-load bundle.
+const LightRays = dynamic(() => import("@/components/ui/light-rays"), { ssr: false });
 
 /* ─── Config ─────────────────────────────────────────────── */
 const LOADING_STATES = [

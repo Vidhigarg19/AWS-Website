@@ -27,6 +27,8 @@ export interface DbEvent {
   event_timing: string | null;     // Display-oriented, e.g. "11:00 AM - 12:30 PM" or null if TBA
   speaker_name: string | null;
   attendance_open: boolean;
+  poster_url?: string | null;
+  photos?: string[] | null;
 }
 
 export interface DbAttendance {

@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "email:preview": "node scripts/generate-certificate-email-preview.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1112.0",

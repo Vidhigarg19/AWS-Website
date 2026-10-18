@@ -10,6 +10,7 @@ interface CertificatePreviewProps {
   signerName?: string;
   signerTitle?: string;
   certificateId?: string;
+  awardTitle?: string;
 }
 
 function escapeXml(unsafe: string): string {
@@ -33,6 +34,7 @@ export function CertificatePreview({
   signerName,
   signerTitle,
   certificateId,
+  awardTitle,
 }: CertificatePreviewProps) {
   const [baseSvg, setBaseSvg] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -41,17 +43,35 @@ export function CertificatePreview({
   const qrDataUrl = qr?.certificateId === certId ? qr.dataUrl : "";
 
   useEffect(() => {
-    fetch("/templates/Certificate-Template.svg")
-      .then((res) => res.text())
+    let isCurrent = true;
+    setIsLoading(true);
+    const templateName = awardTitle
+      ? "Certificate-of-Excellence-Template.svg"
+      : "Certificate-Template.svg";
+
+    fetch(`/templates/${templateName}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load ${templateName}: ${res.status}`);
+        return res.text();
+      })
       .then((svgText) => {
-        setBaseSvg(svgText);
-        setIsLoading(false);
+        if (isCurrent) {
+          setBaseSvg(svgText);
+          setIsLoading(false);
+        }
       })
       .catch((err) => {
-        console.error("Failed to load Certificate-Template.svg:", err);
-        setIsLoading(false);
+        console.error(`Failed to load ${templateName}:`, err);
+        if (isCurrent) {
+          setBaseSvg("");
+          setIsLoading(false);
+        }
       });
-  }, []);
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [awardTitle]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -140,6 +160,53 @@ export function CertificatePreview({
       </style>
     `;
 
+    if (awardTitle) {
+      const nameSize = getFittingFontSize(name.length, 96, 20);
+      const rankSize = getFittingFontSize(awardTitle.length, 112, 13);
+      const rankWidth = awardTitle.length * rankSize * 0.602;
+      const eventSize = Math.min(62, Math.floor(1240 / (event.length * 0.602)));
+      const dateLine = `on ${date}`;
+      const dateSize = getFittingFontSize(dateLine.length, 34, 57);
+      const datePrefixWidth = "on ".length * dateSize * 0.602;
+      const dateLineWidth = dateLine.length * dateSize * 0.602;
+      const rankLineY = 1550 - rankSize * 0.38;
+      const excellenceTextXml = `
+        <text x="${cx}" y="1215" text-anchor="middle" font-size="34" font-weight="400" fill="#555555">This certificate is proudly presented to</text>
+        <text x="${cx}" y="1365" text-anchor="middle" font-size="${nameSize}" font-weight="700" fill="#161D26">${escapeXml(name)}</text>
+        <text x="${cx}" y="1430" text-anchor="middle" font-size="32" font-weight="400" fill="#555555">for securing</text>
+        <rect x="${cx - rankWidth / 2 - 195}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
+        <rect x="${cx + rankWidth / 2 + 55}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
+        <text x="${cx}" y="1550" text-anchor="middle" font-size="${rankSize}" font-weight="700" fill="#FF9900">${escapeXml(awardTitle)}</text>
+        <text x="${cx}" y="1645" text-anchor="middle" font-size="54" font-weight="400" fill="#555555">in the</text>
+        <text x="${cx}" y="1725" text-anchor="middle" font-size="${eventSize}" font-weight="700" fill="#FF9900">${escapeXml(event)}</text>
+        <text x="${cx}" y="1820" text-anchor="middle" font-size="28" font-weight="400" fill="#444444">conducted by AWS Student Builder Group at Tulas University</text>
+        <text x="${cx - dateLineWidth / 2}" y="1915" font-size="${dateSize}" font-weight="400" fill="#555555">on </text>
+        <text x="${cx - dateLineWidth / 2 + datePrefixWidth}" y="1915" font-size="${dateSize}" font-weight="400" fill="#161D26">${escapeXml(date)}</text>
+      `;
+      const qrAndMetaXml = `
+        <g id="dynamic-verification-meta">
+          ${qrDataUrl
+            ? `<image href="${qrDataUrl}" x="220" y="2010" width="230" height="230" preserveAspectRatio="xMidYMid meet"/>`
+            : `<rect x="220" y="2010" width="230" height="230" fill="#F4F4F6" stroke="#DEDEE3" stroke-width="2" rx="8"/><text x="335" y="2135" text-anchor="middle" font-size="24" fill="#888888">[QR CODE]</text>`}
+        <text x="220" y="2285" font-size="26" font-weight="700" fill="#161D26">Certificate ID: ${escapeXml(certId)}</text>
+        <text x="220" y="2330" font-size="24" font-weight="700" fill="#161D26">Verify Certificate: https://awstulas.org/verify/${escapeXml(certId)}</text>
+        </g>
+      `;
+      const signerSigXml = `<image href="/Lingwal_Sign.png" x="2295" y="2005" width="360" height="130" preserveAspectRatio="xMidYMid meet" />`;
+      const signerTitlesXml = `<text x="${cx}" y="2210" text-anchor="middle" font-size="28" font-weight="400" fill="#555555">${escapeXml(title)}</text><text x="${cx}" y="2258" text-anchor="middle" font-size="28" font-weight="400" fill="#555555">AWS Student Builder Group</text>`;
+
+      return baseSvg
+        .replace('width="3300" height="2550"', 'width="100%" height="100%"')
+        .replace("<!-- PROUDLY_PRESENT_PLACEHOLDER -->", excellenceTextXml)
+        .replace("<!-- PARTICIPANT_NAME_PLACEHOLDER -->", "")
+        .replace("<!-- ACHIEVEMENT_TEXT_PLACEHOLDER -->", "")
+        .replace("<!-- EVENT_DETAILS_PLACEHOLDER -->", "")
+        .replace("<!-- SIGNER_NAME_PLACEHOLDER -->", signerSigXml)
+        .replace("<!-- SIGNER_TITLE_PLACEHOLDER -->", signerTitlesXml)
+        .replace("<!-- QR_AND_META_PLACEHOLDER -->", qrAndMetaXml)
+        .replace("<defs>", `<defs>${fontStyle}`);
+    }
+
     let res = baseSvg
       .replace('width="3300" height="2550"', 'width="100%" height="100%"')
       .replace(/<rect x="2029" y="2148" width="882" height="2" fill="#161d26"\/>/, '<rect x="2175" y="2148" width="600" height="2" fill="#161d26"/>')
@@ -162,6 +229,7 @@ export function CertificatePreview({
     signerTitle,
     certId,
     qrDataUrl,
+    awardTitle,
   ]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);

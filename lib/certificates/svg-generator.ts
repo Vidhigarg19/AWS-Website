@@ -20,6 +20,7 @@ export interface SvgCertificateInput {
   participantName: string;
   eventTitle: string;
   eventDate: string;
+  awardTitle?: string;
   signerName?: string;
   signerTitle?: string;
   certificateId: string;
@@ -55,29 +56,28 @@ export function buildVerifyUrlText(certificateId: string): string {
   return `Verify Certificate: https://awstulas.org/verify/${certificateId}`;
 }
 
-let cachedTemplateSvg: string | null = null;
 let cachedBoldFont: Font | null = null;
 let cachedRegFont: Font | null = null;
 let cachedSignatureDataUri: string | null = null;
 
 /**
- * Loads and caches the base SVG template.
+ * Loads the selected SVG template from disk for each generation.
  */
-export async function getBaseSvgTemplate(): Promise<string> {
-  if (cachedTemplateSvg) return cachedTemplateSvg;
-
+export async function getBaseSvgTemplate(awardTitle?: string): Promise<string> {
+  const templateName = awardTitle
+    ? "Certificate-of-Excellence-Template.svg"
+    : "Certificate-Template.svg";
   const templatePath = path.join(
     process.cwd(),
     "public",
     "templates",
-    "Certificate-Template.svg"
+    templateName
   );
 
   try {
-    cachedTemplateSvg = await fs.readFile(templatePath, "utf8");
-    return cachedTemplateSvg;
+    return await fs.readFile(templatePath, "utf8");
   } catch (err) {
-    console.error("[SvgGenerator] Failed to read Certificate-Template.svg:", err);
+    console.error(`[SvgGenerator] Failed to read ${templateName}:`, err);
     throw new Error(`SVG template not found at ${templatePath}`);
   }
 }
@@ -253,7 +253,7 @@ export async function generateCertificateSvg(
 ): Promise<string> {
   const [{ boldFont, regFont }, baseSvg, signatureDataUri] = await Promise.all([
     getFonts(),
-    getBaseSvgTemplate(),
+    getBaseSvgTemplate(input.awardTitle),
     input.signatureDataUri ? Promise.resolve(input.signatureDataUri) : getSignatureDataUri(),
   ]);
 
@@ -267,6 +267,121 @@ export async function generateCertificateSvg(
 
   // ── Right panel center X ──────────────────────────────────────
   const cx = 2475;
+
+  if (input.awardTitle) {
+    const line1 = "This certificate is proudly presented to";
+    const line1Size = getFittingFontSize(regFont, line1, 34, 1180);
+    const line1Path = textToSvgPath(regFont, line1, cx, 1215, line1Size, "#555555");
+
+    const nameSize = getFittingFontSize(boldFont, participantName, 96, 1200);
+    const namePath = textToSvgPath(boldFont, participantName, cx, 1365, nameSize, "#161D26");
+
+    const securingText = "for securing";
+    const securingSize = getFittingFontSize(regFont, securingText, 32, 1180);
+    const securingPath = textToSvgPath(
+      regFont,
+      securingText,
+      cx,
+      1430,
+      securingSize,
+      "#555555"
+    );
+
+    const rankSize = getFittingFontSize(boldFont, input.awardTitle, 112, 850);
+    const rankWidth = boldFont.getAdvanceWidth(input.awardTitle, rankSize);
+    const rankBaseline = 1550;
+    const rankPath = textToSvgPath(
+      boldFont,
+      input.awardTitle,
+      cx,
+      rankBaseline,
+      rankSize,
+      "#FF9900"
+    );
+    const rankLineY = rankBaseline - rankSize * 0.38;
+    const rankDecorations = `
+      <rect x="${cx - rankWidth / 2 - 195}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
+      <rect x="${cx + rankWidth / 2 + 55}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
+    `;
+
+    const eventPrefix = "in the";
+    const eventPrefixPath = textToSvgPath(
+      regFont,
+      eventPrefix,
+      cx,
+      1645,
+      54,
+      "#555555"
+    );
+    const eventSize = getFittingFontSize(boldFont, eventTitle, 62, 1240);
+    const eventNamePath = textToSvgPath(
+      boldFont,
+      eventTitle,
+      cx,
+      1725,
+      eventSize,
+      "#FF9900"
+    );
+
+    const details = "conducted by AWS Student Builder Group at Tulas University";
+    const detailsSize = getFittingFontSize(regFont, details, 28, 1240);
+    const detailsPath = textToSvgPath(regFont, details, cx, 1820, detailsSize, "#444444");
+
+    const datePrefix = "on ";
+    const dateLine = `${datePrefix}${eventDate}`;
+    const dateSize = getFittingFontSize(regFont, dateLine, 34, 1180);
+    const dateLineWidth = regFont.getAdvanceWidth(dateLine, dateSize);
+    const dateStartX = cx - dateLineWidth / 2;
+    const datePrefixWidth = regFont.getAdvanceWidth(datePrefix, dateSize);
+    const datePrefixPath = textToSvgPathLeft(
+      regFont,
+      datePrefix,
+      dateStartX,
+      1915,
+      dateSize,
+      "#555555"
+    );
+    const datePath = textToSvgPathLeft(
+      regFont,
+      eventDate,
+      dateStartX + datePrefixWidth,
+      1915,
+      dateSize,
+      "#161D26"
+    );
+
+    const qrImageXml = input.qrDataUri
+      ? `<image href="${input.qrDataUri}" x="220" y="2010" width="230" height="230" />`
+      : `<rect x="220" y="2010" width="230" height="230" fill="#F4F4F6" stroke="#DEDEE3" stroke-width="2" rx="8"/><text x="335" y="2135" text-anchor="middle" font-family="monospace" font-size="24" fill="#888">[QR]</text>`;
+    const qrAndMetaXml = `
+      <g id="dynamic-verification-meta">
+        ${qrImageXml}
+      </g>
+    `;
+
+    const sigImgXml = signatureDataUri
+      ? `<image href="${signatureDataUri}" x="2295" y="2005" width="360" height="130" preserveAspectRatio="xMidYMid meet" />`
+      : "";
+    const signerTitleSize = getFittingFontSize(regFont, signerTitle, 28, 580);
+    const signerTitlePath = textToSvgPath(regFont, signerTitle, cx, 2210, signerTitleSize, "#555555");
+    const signerOrgSize = getFittingFontSize(regFont, signerOrg, 28, 580);
+    const signerOrgPath = textToSvgPath(regFont, signerOrg, cx, 2258, signerOrgSize, "#555555");
+
+    return baseSvg
+      .replace("<!-- PROUDLY_PRESENT_PLACEHOLDER -->", line1Path)
+      .replace("<!-- PARTICIPANT_NAME_PLACEHOLDER -->", namePath)
+      .replace(
+        "<!-- ACHIEVEMENT_TEXT_PLACEHOLDER -->",
+        `${securingPath}${rankDecorations}${rankPath}`
+      )
+      .replace(
+        "<!-- EVENT_DETAILS_PLACEHOLDER -->",
+        `${eventPrefixPath}${eventNamePath}${detailsPath}${datePrefixPath}${datePath}`
+      )
+      .replace("<!-- SIGNER_NAME_PLACEHOLDER -->", sigImgXml)
+      .replace("<!-- SIGNER_TITLE_PLACEHOLDER -->", `${signerTitlePath}${signerOrgPath}`)
+      .replace("<!-- QR_AND_META_PLACEHOLDER -->", qrAndMetaXml);
+  }
 
   // 1. "This certificate is proudly presented to"
   const line1 = "This certificate is proudly presented to";

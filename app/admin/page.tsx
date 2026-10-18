@@ -1719,14 +1719,24 @@ function AdminPageContent() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="hidden h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs font-medium text-[#71717A] hover:text-red-400 hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/20 transition-all lg:flex items-center gap-2 cursor-pointer bg-white/[0.02] shrink-0"
-            title="Sign Out of Admin Portal"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isMediaLead && (
+              <a
+                href="/admin/media-members"
+                className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white hover:bg-white/[0.06] border border-white/[0.08] transition-all flex items-center bg-white/[0.02] shrink-0"
+              >
+                Media members
+              </a>
+            )}
+            <button
+              onClick={handleLogout}
+              className="hidden h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs font-medium text-[#71717A] hover:text-red-400 hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/20 transition-all lg:flex items-center gap-2 cursor-pointer bg-white/[0.02] shrink-0"
+              title="Sign Out of Admin Portal"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
         {error && (
           <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs sm:text-sm text-red-400 flex items-center gap-3">

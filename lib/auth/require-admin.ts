@@ -100,7 +100,7 @@ export async function getAdminSession(): Promise<AdminLookup> {
   return { ok: true, session: { user, role } };
 }
 
-const FAILURE_RESPONSES: Record<AdminFailure, { status: number; error: string }> = {
+export const FAILURE_RESPONSES: Record<AdminFailure, { status: number; error: string }> = {
   unauthenticated: { status: 401, error: "Authentication required." },
   forbidden: { status: 403, error: "You do not have permission to do this." },
   misconfigured: { status: 500, error: "Server configuration error." },

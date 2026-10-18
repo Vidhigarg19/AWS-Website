@@ -2,15 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Root middleware — first layer of protection for the admin area.
+ * Root middleware — first layer of protection for the admin and media areas.
  *
- *   /admin/*      → not signed in: redirect to /login
- *   /api/admin/*  → not signed in: 401 JSON (a redirect makes no sense for an API)
+ *   /admin/*       → not signed in: redirect to /login
+ *   /api/admin/*   → not signed in: 401 JSON (a redirect makes no sense for an API)
+ *   /media/*       → not signed in: redirect to /media/login   (/media/login itself is public)
+ *   /api/media/*   → not signed in: 401 JSON
  *
  * IMPORTANT: this layer only answers "is someone signed in?". It does NOT
- * decide who is an admin. Every /api/admin/* handler must still call
- * requireAdmin() (lib/auth/require-admin.ts), and the admin layout checks
- * the role too. Never rely on middleware alone for authorization.
+ * decide who may do what. Every /api/admin/* handler must still call
+ * requireAdmin() and every /api/media/* handler requireRole()
+ * (lib/auth/*), and the layouts check the role too. Never rely on
+ * middleware alone for authorization.
  *
  * All other routes pass through unmodified.
  */
@@ -19,8 +22,13 @@ export async function middleware(request: NextRequest) {
 
   const isAdminApi = pathname.startsWith("/api/admin");
   const isAdminPage = pathname.startsWith("/admin");
+  const isMediaApi = pathname === "/api/media" || pathname.startsWith("/api/media/");
+  const isMediaLogin = pathname === "/media/login" || pathname.startsWith("/media/login/");
+  const isMediaPage =
+    (pathname === "/media" || pathname.startsWith("/media/")) && !isMediaLogin;
 
-  if (!isAdminPage && !isAdminApi) {
+  const isProtectedApi = isAdminApi || isMediaApi;
+  if (!isAdminPage && !isMediaPage && !isProtectedApi) {
     return NextResponse.next();
   }
 
@@ -52,7 +60,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    if (isAdminApi) {
+    if (isProtectedApi) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 }
@@ -60,7 +68,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
+    loginUrl.pathname = isMediaPage ? "/media/login" : "/login";
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -69,5 +77,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/api/admin/:path*",
+    "/media/:path*",
+    "/api/media/:path*",
+  ],
 };

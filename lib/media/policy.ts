@@ -1,0 +1,52 @@
+// ============================================================
+// Media upload policy — PURE constants (no framework or Node imports)
+// ============================================================
+//
+// What may be uploaded, and how big. This is the single source of truth used
+// by the init API, the presigned-POST policy and the unit tests.
+//
+// Why these types only:
+//   - JPEG / PNG / WebP: every browser can show them and sharp can resize them.
+//   - MP4 / WebM: play natively in browsers.
+//   - NOT HEIC (iPhone default) or MOV (QuickTime): they need conversion
+//     first (libheif / transcoding). Ask uploaders to export as JPEG / MP4,
+//     or add conversion later (see docs/architecture/media-portal.md).
+//
+// The browser-declared Content-Type is only a first filter. The real type is
+// verified from the file's own bytes (see ./sniff.ts).
+// ============================================================
+
+export type MediaKind = "image" | "video";
+
+export interface AllowedType {
+  kind: MediaKind;
+  /** File extension used in the S3 key. Never taken from the user's filename. */
+  ext: string;
+  maxBytes: number;
+}
+
+const MB = 1024 * 1024;
+
+export const IMAGE_MAX_BYTES = 25 * MB;
+export const VIDEO_MAX_BYTES = 500 * MB;
+
+export const ALLOWED_TYPES: Readonly<Record<string, AllowedType>> = {
+  "image/jpeg": { kind: "image", ext: "jpg", maxBytes: IMAGE_MAX_BYTES },
+  "image/png": { kind: "image", ext: "png", maxBytes: IMAGE_MAX_BYTES },
+  "image/webp": { kind: "image", ext: "webp", maxBytes: IMAGE_MAX_BYTES },
+  "video/mp4": { kind: "video", ext: "mp4", maxBytes: VIDEO_MAX_BYTES },
+  "video/webm": { kind: "video", ext: "webm", maxBytes: VIDEO_MAX_BYTES },
+};
+
+/** Extensions that can ever appear in an original/video key. */
+export const ALLOWED_EXTENSIONS: readonly string[] = Object.values(ALLOWED_TYPES).map(
+  (t) => t.ext
+);
+
+export const MAX_FILES_PER_REQUEST = 20;
+export const MAX_CAPTION_LENGTH = 280;
+/** How long a presigned upload permission stays valid. */
+export const PRESIGN_TTL_SECONDS = 600;
+
+export type MediaPurpose = "cover" | "gallery";
+export const MEDIA_PURPOSES: readonly MediaPurpose[] = ["cover", "gallery"];

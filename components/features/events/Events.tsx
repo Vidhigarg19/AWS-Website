@@ -46,8 +46,8 @@ type Event = {
   id: string;
   title: string;
   date: string;
-  rawDate: string;
-  timing: string;
+  rawDate: string | null; // null when the event date is TBA
+  timing: string | null;
   isoDate: string; // used for countdown target
   speakerName: string | null;
   attendanceOpen: boolean;
@@ -63,7 +63,8 @@ type Event = {
 /* ------------------------------------------------------------------ */
 
 /** Formats a YYYY-MM-DD string to a human-readable date. */
-function formatDisplayDate(iso: string): string {
+function formatDisplayDate(iso: string | null): string {
+  if (!iso) return ""; // TBA
   try {
     const d = new Date(iso + "T00:00:00");
     if (isNaN(d.getTime())) return iso;
@@ -82,7 +83,7 @@ function formatDisplayDate(iso: string): string {
  * The first non-past event is labelled "current"; the rest are "upcoming".
  */
 function computeStatus(
-  eventDate: string,
+  eventDate: string | null,
   firstFutureId: string | null,
   id: string
 ): EventStatus {
@@ -92,6 +93,7 @@ function computeStatus(
   }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  if (!eventDate) return "past"; // TBA events are not countdown targets
   const date = new Date(eventDate + "T00:00:00");
   // If the date string is malformed, also treat as upcoming rather than concluded
   if (isNaN(date.getTime())) return "upcoming";
@@ -353,7 +355,7 @@ export function Events() {
             date: formatDisplayDate(eventDate),
             rawDate: eventDate,
             timing: row.event_timing ?? "",
-            isoDate: status !== "past" ? eventDate + "T00:00:00" : "",
+            isoDate: status !== "past" && eventDate ? eventDate + "T00:00:00" : "",
             speakerName: row.speaker_name,
             attendanceOpen: row.attendance_open,
             tag: "Workshop",

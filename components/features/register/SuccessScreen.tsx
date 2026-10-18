@@ -4,7 +4,6 @@ import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import LightRays from "@/components/ui/light-rays";
 import CursorGrid from "@/components/ui/cursor-grid";
 import { ThemeStyles } from "./ThemeStyles";
 import {
@@ -24,6 +23,10 @@ import {
   GraduationCap,
   FileText,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// WebGL background (ogl) is decorative: load it after hydration instead of in the first-load bundle.
+const LightRays = dynamic(() => import("@/components/ui/light-rays"), { ssr: false });
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 

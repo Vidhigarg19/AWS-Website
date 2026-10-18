@@ -159,7 +159,7 @@ export function ChatbotMascot() {
         <div className="chatbot-header">
           <div className="chatbot-header-avatar">
             <Image
-              src="/chatbotmascot.png"
+              src="/chatbotmascot.webp"
               alt="Kio mascot"
               width={120}
               height={120}
@@ -189,7 +189,7 @@ export function ChatbotMascot() {
             <div key={msg.id} className={`chatbot-message chatbot-message--${msg.role}`}>
               {msg.role === "bot" && (
                 <div className="chatbot-bot-avatar">
-                  <Image src="/chatbotmascot.png" alt="Kio" width={80} height={80} quality={100} unoptimized className="chatbot-bot-avatar-img" />
+                  <Image src="/chatbotmascot.webp" alt="Kio" width={80} height={80} quality={100} unoptimized className="chatbot-bot-avatar-img" />
                 </div>
               )}
 
@@ -254,7 +254,7 @@ export function ChatbotMascot() {
           <div className="chatbot-trigger-avatar">
             {videoEnded ? (
               <Image
-                src="/chatbotmascot.png"
+                src="/chatbotmascot.webp"
                 alt="Kio mascot"
                 width={200}
                 height={200}

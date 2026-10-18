@@ -3,6 +3,7 @@
 // POST /api/admin/events      — Create a new event
 // ============================================================
 
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse, DbEvent, AdminEventRequest } from "@/types/certificate";
@@ -11,6 +12,9 @@ import type { ApiResponse, DbEvent, AdminEventRequest } from "@/types/certificat
  * GET: Returns all events, ordered by event_date descending.
  */
 export async function GET() {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(
@@ -39,6 +43,9 @@ export async function GET() {
  * POST: Creates a new event. Optionally sets it as the active portal event.
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const supabase = getAdminClient();
   if (!supabase) {
     return NextResponse.json(

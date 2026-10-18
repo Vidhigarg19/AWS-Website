@@ -12,11 +12,20 @@
 // ============================================================
 
 import crypto from "crypto";
+import { composeCertificateId } from "./id-format";
+
+// Format helpers live in ./id-format (no Node imports) so client components can
+// use them without bundling crypto. Re-exported here so server callers keep
+// importing from one place.
+export {
+  composeCertificateId,
+  isValidCertificateIdFormat,
+  extractYearFromCertificateId,
+} from "./id-format";
 
 /** Unambiguous character set — excludes 0/O, 1/I/L */
 const CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 6;
-const PREFIX = "AWS-SBG";
 const MAX_GENERATION_ATTEMPTS = 10;
 
 /**
@@ -30,20 +39,6 @@ function generateRandomCode(length: number = CODE_LENGTH): string {
     code += CHARSET[bytes[i] % CHARSET.length];
   }
   return code;
-}
-
-/**
- * Composes a full certificate ID from a random code.
- *
- * @param year - The year to include in the ID (defaults to current year)
- * @returns A certificate ID like "AWS-SBG-2026-A8F92K"
- */
-export function composeCertificateId(
-  code: string,
-  year?: number
-): string {
-  const y = year ?? new Date().getFullYear();
-  return `${PREFIX}-${y}-${code}`;
 }
 
 /**
@@ -83,28 +78,4 @@ export async function generateCertificateId(
   throw new Error(
     `Failed to generate a unique certificate ID after ${MAX_GENERATION_ATTEMPTS} attempts. This is extremely unlikely and may indicate a database issue.`
   );
-}
-
-/**
- * Validates the format of a certificate ID.
- *
- * @param certificateId - The certificate ID to validate
- * @returns true if the format matches AWS-SBG-{YEAR}-{CODE}
- */
-export function isValidCertificateIdFormat(certificateId: string): boolean {
-  const pattern = /^AWS-SBG-\d{4}-[A-Z2-9]{6}$/;
-  return pattern.test(certificateId);
-}
-
-/**
- * Extracts the year from a certificate ID.
- *
- * @param certificateId - A valid certificate ID
- * @returns The year as a number, or null if invalid format
- */
-export function extractYearFromCertificateId(
-  certificateId: string
-): number | null {
-  const match = certificateId.match(/^AWS-SBG-(\d{4})-[A-Z2-9]{6}$/);
-  return match ? parseInt(match[1], 10) : null;
 }

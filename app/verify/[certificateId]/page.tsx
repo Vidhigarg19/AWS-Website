@@ -10,6 +10,7 @@ import {
   Download,
   Search,
   AlertTriangle,
+  GraduationCap,
 } from "lucide-react";
 
 interface PageProps {
@@ -58,6 +59,9 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
           event_name_snapshot,
           event_date_snapshot,
           issue_date,
+          event_id,
+          participant_id,
+          award_title,
           verification_url,
           pdf_url,
           participant:participants (
@@ -72,14 +76,32 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
         const part = Array.isArray(data.participant)
           ? data.participant[0]
           : data.participant;
+        let course = part?.course || "Student";
+        let rollNo = part?.roll_no || "N/A";
+
+        if (data.award_title) {
+          const { data: topPerformer, error: topPerformerError } = await supabase
+            .from("top_performers")
+            .select("course, roll_no")
+            .eq("event_id", data.event_id)
+            .eq("participant_id", data.participant_id)
+            .maybeSingle();
+
+          if (topPerformerError) {
+            console.error("[VerifyPage] Top performer lookup failed:", topPerformerError);
+          }
+          course = topPerformer?.course || "N/A";
+          rollNo = topPerformer?.roll_no || "N/A";
+        }
 
         cert = {
           certificateId: data.certificate_id,
           recipientName: data.recipient_name_snapshot,
-          course: part?.course || "Student",
-          rollNo: part?.roll_no || "N/A",
+          course,
+          rollNo,
           eventName: data.event_name_snapshot,
           eventDate: data.event_date_snapshot,
+          awardTitle: data.award_title || null,
           issueDate: data.issue_date,
           issuedBy: "AWS Student Builder Group • Tulas University",
           pdfUrl: data.pdf_url || `/api/certificates/${data.certificate_id}`,
@@ -121,6 +143,12 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
                       {cert.recipientName}
                     </h1>
                   </div>
+                  {cert.awardTitle && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold self-start">
+                      <Award className="w-3.5 h-3.5" />
+                      Certificate of Excellence - {cert.awardTitle}
+                    </div>
+                  )}
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono font-semibold self-start sm:self-center">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>VERIFIED CREDENTIAL</span>
@@ -129,6 +157,19 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
 
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-[#26262D]">
+                  {cert.awardTitle && (
+                    <div className="col-span-1 sm:col-span-2 p-4 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">
+                      <GraduationCap className="w-5 h-5 text-[#818CF8] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider text-[#8B8B96] font-mono">
+                          Course
+                        </div>
+                        <div className="text-sm font-semibold text-white truncate">
+                          {cert.course}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* Event Name */}
                   <div className="p-4 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">
                     <Award className="w-5 h-5 text-[#F59E0B] shrink-0" />
@@ -211,6 +252,7 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
                     eventTitle={cert.eventName}
                     eventDate={formatDate(cert.eventDate)}
                     certificateId={cert.certificateId}
+                    awardTitle={cert.awardTitle || undefined}
                   />
                 </div>
               </div>

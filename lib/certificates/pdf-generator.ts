@@ -37,6 +37,7 @@ import {
 
 // ── IBM Plex Mono Bold Font Cache & Fontkit Patch ─────────────
 let cachedFontBytes: Buffer | null = null;
+let cachedRegularFontBytes: Buffer | null = null;
 let fontkitPatched = false;
 
 /**
@@ -89,6 +90,20 @@ async function getIbmPlexMonoBoldBytes(): Promise<Buffer> {
   return cachedFontBytes;
 }
 
+async function getIbmPlexMonoRegularBytes(): Promise<Buffer> {
+  if (cachedRegularFontBytes) return cachedRegularFontBytes;
+  const fontPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "IBM_Plex_Mono",
+    "IBMPlexMono-Regular.ttf"
+  );
+  cachedRegularFontBytes = await fs.readFile(fontPath);
+  ensureFontkitPatched(cachedRegularFontBytes);
+  return cachedRegularFontBytes;
+}
+
 // ── PDF page dimensions (US Letter Landscape) ─────────────────
 const PDF_W = 792; // points
 const PDF_H = 612; // points
@@ -136,7 +151,7 @@ function formatDate(isoDate: string): string {
  * @returns Generation result with certificateId and downloadable pdfBuffer
  */
 export async function generateCertificatePdf(
-  input: CertificateGenerationInput
+  input: CertificateGenerationInput & { awardTitle?: string }
 ): Promise<CertificateGenerationResult> {
   try {
     // 1. Use pre-generated Certificate ID or generate a new one
@@ -153,6 +168,7 @@ export async function generateCertificatePdf(
 
     // 3. Format event date
     const formattedDate = formatDate(input.eventDate);
+    const awardTitle = input.awardTitle?.trim();
 
     // 4. Generate dynamic SVG certificate
     //    NOTE: the verification URL text is intentionally excluded from the SVG
@@ -161,6 +177,7 @@ export async function generateCertificatePdf(
       participantName: input.participantName.trim(),
       eventTitle: input.eventTitle.trim(),
       eventDate: formattedDate,
+      awardTitle,
       signerName: input.signerName?.trim(),
       signerTitle: input.signerTitle?.trim(),
       certificateId,
@@ -195,14 +212,20 @@ export async function generateCertificatePdf(
     let certFont;
     try {
       pdfDoc.registerFontkit(fontkit);
-      const fontBytes = await getIbmPlexMonoBoldBytes();
+      const fontBytes = awardTitle
+        ? await getIbmPlexMonoRegularBytes()
+        : await getIbmPlexMonoBoldBytes();
       certFont = await pdfDoc.embedFont(fontBytes);
     } catch (fontErr) {
       console.warn(
-        "[PDFGenerator] Custom font embedding failed, falling back to CourierBold:",
+        `[PDFGenerator] Custom font embedding failed, falling back to ${
+          awardTitle ? "Courier" : "CourierBold"
+        }:`,
         fontErr
       );
-      certFont = await pdfDoc.embedFont(StandardFonts.CourierBold);
+      certFont = await pdfDoc.embedFont(
+        awardTitle ? StandardFonts.Courier : StandardFonts.CourierBold
+      );
     }
 
     const textColor = rgb(0.086, 0.114, 0.149); // #161D26

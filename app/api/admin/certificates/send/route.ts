@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
           recipient_name_snapshot,
           event_name_snapshot,
           event_date_snapshot,
+          award_title,
           verification_url,
           participant:participants (
             email,
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
         participantName: cert.recipient_name_snapshot,
         eventTitle: cert.event_name_snapshot,
         eventDate: cert.event_date_snapshot,
+        awardTitle: cert.award_title || undefined,
       });
 
       if (!pdfResult.success || !pdfResult.pdfBuffer) {
@@ -132,6 +134,7 @@ export async function POST(request: NextRequest) {
         eventDate: cert.event_date_snapshot,
         certificateId: cert.certificate_id,
         verificationUrl: cert.verification_url,
+        awardTitle: cert.award_title || undefined,
         pdfBuffer: pdfResult.pdfBuffer,
       });
 
@@ -172,13 +175,15 @@ export async function POST(request: NextRequest) {
           recipient_name_snapshot,
           event_name_snapshot,
           event_date_snapshot,
+          award_title,
           verification_url,
           participant:participants (
             email,
             full_name
           )
         `)
-        .eq("event_id", eventId);
+        .eq("event_id", eventId)
+        .is("award_title", null);
 
       if (fetchErr) {
         return NextResponse.json(
@@ -220,6 +225,7 @@ export async function POST(request: NextRequest) {
             participantName: cert.recipient_name_snapshot,
             eventTitle: cert.event_name_snapshot,
             eventDate: cert.event_date_snapshot,
+            awardTitle: cert.award_title || undefined,
           });
 
           if (!pdfResult.success || !pdfResult.pdfBuffer) {
@@ -235,6 +241,7 @@ export async function POST(request: NextRequest) {
             eventDate: cert.event_date_snapshot,
             certificateId: cert.certificate_id,
             verificationUrl: cert.verification_url,
+            awardTitle: cert.award_title || undefined,
             pdfBuffer: pdfResult.pdfBuffer,
           });
 

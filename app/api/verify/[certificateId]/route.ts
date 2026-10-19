@@ -63,6 +63,9 @@ export async function GET(
         event_name_snapshot,
         event_date_snapshot,
         issue_date,
+        event_id,
+        participant_id,
+        award_title,
         participant:participants (
           course,
           roll_no
@@ -103,6 +106,34 @@ export async function GET(
     const part = Array.isArray(cert.participant)
       ? cert.participant[0]
       : cert.participant;
+    let course = part?.course || "N/A";
+    let rollNo = part?.roll_no || "N/A";
+
+    if (cert.award_title) {
+      const { data: topPerformer, error: topPerformerError } = await supabase
+        .from("top_performers")
+        .select("course, roll_no")
+        .eq("event_id", cert.event_id)
+        .eq("participant_id", cert.participant_id)
+        .maybeSingle();
+
+      if (topPerformerError) {
+        console.error("[API/verify] Top performer lookup error:", topPerformerError);
+        return NextResponse.json(
+          {
+            valid: false,
+            status: "NOT_FOUND",
+            certificateId: cleanId,
+            error: "Failed to query top performer details.",
+            verifiedAt: new Date().toISOString(),
+          } satisfies CertificateVerificationResponse,
+          { status: 500 }
+        );
+      }
+
+      course = topPerformer?.course || "N/A";
+      rollNo = topPerformer?.roll_no || "N/A";
+    }
 
     return NextResponse.json(
       {
@@ -112,12 +143,13 @@ export async function GET(
         certificate: {
           certificateId: cert.certificate_id,
           recipientName: cert.recipient_name_snapshot,
-          course: part?.course || "N/A",
-          rollNo: part?.roll_no || "N/A",
+          course,
+          rollNo,
           eventName: cert.event_name_snapshot,
           eventDate: cert.event_date_snapshot,
           issueDate: cert.issue_date,
           issuedBy: "AWS Student Builder Group • Tulas University",
+          ...(cert.award_title ? { awardTitle: cert.award_title } : {}),
         },
         verifiedAt: new Date().toISOString(),
       } satisfies CertificateVerificationResponse,

@@ -267,6 +267,7 @@ function AdminPageContent() {
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkDragActive, setBulkDragActive] = useState(false);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkImportMode, setBulkImportMode] = useState<"append" | "overwrite">("append");
   // ── Media Assets Modal State (Media Lead / Event Media) ─────
   const [selectedMediaEvent, setSelectedMediaEvent] = useState<DbEvent | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
@@ -711,7 +712,7 @@ function AdminPageContent() {
     setUploadingMedia(false);
   };
 
-  const handlePosterSelect = (file: File) => {
+  const handlePosterSelect = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error("Please select a valid image file (PNG, JPG, WebP).");
@@ -724,29 +725,74 @@ function AdminPageContent() {
     if (posterPreview && posterPreview.startsWith("blob:")) {
       URL.revokeObjectURL(posterPreview);
     }
-    setPosterFile(file);
-    setPosterPreview(URL.createObjectURL(file));
+
+    // Convert to WebP for consistent format across the site
+    try {
+      const { convertToWebp } = await import("@/lib/convert-to-webp");
+      const isAlreadyWebp = file.type === "image/webp";
+      if (!isAlreadyWebp) {
+        toast.loading("Converting to WebP…", { id: "webp-convert" });
+      }
+      const converted = await convertToWebp(file);
+      if (!isAlreadyWebp) {
+        toast.success(
+          `Converted "${file.name}" → "${converted.name}" (${(converted.size / 1024).toFixed(0)} KB)`,
+          { id: "webp-convert", duration: 3000 }
+        );
+      }
+      setPosterFile(converted);
+      setPosterPreview(URL.createObjectURL(converted));
+    } catch {
+      toast.error("WebP conversion failed — using original file.");
+      setPosterFile(file);
+      setPosterPreview(URL.createObjectURL(file));
+    }
   };
 
-  const handlePhotosSelect = (files: FileList | File[]) => {
+  const handlePhotosSelect = async (files: FileList | File[]) => {
+    const rawFiles = Array.from(files);
     const validFiles: File[] = [];
-    const newPreviews: string[] = [];
 
-    Array.from(files).forEach((file) => {
+    for (const file of rawFiles) {
       if (!file.type.startsWith("image/")) {
         toast.error(`"${file.name}" is not an image file.`);
-        return;
+        continue;
       }
-      if (file.size > 15 * 1024 * 1024) {
-        toast.error(`"${file.name}" exceeds 15MB limit.`);
-        return;
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds 20MB limit.`);
+        continue;
       }
       validFiles.push(file);
-      newPreviews.push(URL.createObjectURL(file));
-    });
+    }
 
-    setPhotoFiles((prev) => [...prev, ...validFiles]);
-    setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+    if (validFiles.length === 0) return;
+
+    const needsConversion = validFiles.some((f) => f.type !== "image/webp");
+    if (needsConversion) {
+      toast.loading(`Converting ${validFiles.length} photo(s) to WebP…`, { id: "photos-webp" });
+    }
+
+    try {
+      const { convertMultipleToWebp } = await import("@/lib/convert-to-webp");
+      const convertedFiles = await convertMultipleToWebp(validFiles);
+
+      const newPreviews = convertedFiles.map((file) => URL.createObjectURL(file));
+
+      setPhotoFiles((prev) => [...prev, ...convertedFiles]);
+      setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+
+      if (needsConversion) {
+        toast.success(
+          `${convertedFiles.length} photo(s) converted to WebP format!`,
+          { id: "photos-webp", duration: 3000 }
+        );
+      }
+    } catch {
+      toast.error("WebP conversion failed for some photos — keeping original format.", { id: "photos-webp" });
+      const fallbackPreviews = validFiles.map((file) => URL.createObjectURL(file));
+      setPhotoFiles((prev) => [...prev, ...validFiles]);
+      setPhotoPreviews((prev) => [...prev, ...fallbackPreviews]);
+    }
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -4103,7 +4149,7 @@ function AdminPageContent() {
                         Event Poster / Main Banner
                       </label>
                       <p className="text-[11px] text-[#71717A] mt-0.5">
-                        High-resolution promotional banner for the session (PNG, JPG, WebP)
+                        High-resolution promotional banner (any image format — auto-converted to WebP)
                       </p>
                     </div>
                     {posterPreview && (
@@ -4120,7 +4166,7 @@ function AdminPageContent() {
                   <input
                     ref={posterInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/avif"
+                    accept="image/*"
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
@@ -4176,7 +4222,7 @@ function AdminPageContent() {
                         Click to select or drag event poster
                       </p>
                       <p className="text-[11px] text-[#71717A] mt-1">
-                        Recommended: 16:9 or 4:3 ratio, up to 10MB
+                        Any image format • Auto-converted to high-quality .webp
                       </p>
                     </div>
                   )}
@@ -4215,7 +4261,7 @@ function AdminPageContent() {
                     ref={photosInputRef}
                     type="file"
                     multiple
-                    accept="image/png,image/jpeg,image/webp,image/avif"
+                    accept="image/*"
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files && e.target.files.length > 0) {
@@ -4272,7 +4318,7 @@ function AdminPageContent() {
                         Click to select session gallery photos
                       </p>
                       <p className="text-[11px] text-[#71717A] mt-1">
-                        Select multiple images at once (PNG, JPG, WebP)
+                        Any image format • Auto-converted to high-quality .webp
                       </p>
                     </div>
                   )}
@@ -4282,7 +4328,7 @@ function AdminPageContent() {
                 <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 flex items-start gap-2.5">
                   <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
-                    Uploaded assets will be synchronized to the AWS S3 media bucket storage for event archives and display.
+                    Uploaded assets are automatically converted to high-quality WebP format for optimal site performance, ready for AWS S3 sync.
                   </p>
                 </div>
               </div>

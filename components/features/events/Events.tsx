@@ -529,7 +529,7 @@ export function Events() {
             </h1>
 
             <p className="max-w-xl text-[15px] sm:text-[16px] leading-relaxed text-text-secondary">
-              Hands-on cloud workshops, live architectural teardowns, hackathons, and certification study sprints hosted by the AWS Student Builder Group at Tula&apos;s University.
+              Hands-on cloud workshops, live architectural teardowns, hackathons, and certification study sprints hosted by the AWS Student Builder Group at Tulas University.
             </p>
 
             {/* Quick Value Points */}

@@ -371,7 +371,7 @@ async function runEndToEndTests() {
         eventName: lookupCert.event_name_snapshot,
         eventDate: lookupCert.event_date_snapshot,
         issueDate: lookupCert.issue_date,
-        issuedBy: "AWS Student Builder Group • Tula's University",
+        issuedBy: "AWS Student Builder Group • Tulas University",
       },
     };
 

@@ -81,7 +81,7 @@ export function generateCertificateEmailHtml(data: CertificateEmailData): string
                   AWS Student Builder Group
                 </span>
                 <span style="font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.3px;">
-                  Tula&apos;s University • Certificate of Participation
+                  Tulas University • Certificate of Participation
                 </span>
               </td>
             </tr>
@@ -153,7 +153,7 @@ export function generateCertificateEmailHtml(data: CertificateEmailData): string
       <tr>
         <td style="padding: 24px 36px; background-color: #0A0A0E; border-top: 1px solid #1C1C24; text-align: center;">
           <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #D4D4D8;">
-            AWS Student Builder Group • Tula&apos;s University
+            AWS Student Builder Group • Tulas University
           </p>
           <p style="margin: 0; font-size: 11px; color: #52525B;">
             Dehradun, Uttarakhand, India • Official Certificate Verification System
@@ -171,7 +171,7 @@ export function generateCertificateEmailHtml(data: CertificateEmailData): string
 export function generateCertificateEmailText(data: CertificateEmailData): string {
   const { recipientName, eventName, eventDate, certificateId, verificationUrl } = data;
   return `
-AWS Student Builder Group — Tula's University
+AWS Student Builder Group — Tulas University
 Certificate of Participation
 
 Dear ${recipientName},
@@ -191,6 +191,6 @@ You can verify the authenticity of this certificate at any time using the link a
 
 Warm regards,
 AWS Student Builder Group Team
-Tula's University, Dehradun
+Tulas University, Dehradun
   `.trim();
 }

@@ -328,7 +328,7 @@ export default function UpcomingEventCard() {
                   <div className="relative z-10 flex items-center">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-white/10 text-[11px] text-white/90 backdrop-blur-md">
                       <MapPin className="w-3 h-3 text-primary-light shrink-0" />
-                      <span className="truncate">Tula&apos;s University, Dehradun</span>
+                      <span className="truncate">Tulas University, Dehradun</span>
                     </div>
                   </div>
                 </div>
@@ -414,7 +414,7 @@ export default function UpcomingEventCard() {
                         Venue
                       </div>
                       <div className="text-xs sm:text-sm font-bold text-white mt-0.5">
-                        Tula&apos;s University
+                        Tulas University
                       </div>
                       <div className="text-[11px] text-white/60">Dehradun</div>
                     </div>

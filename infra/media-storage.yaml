@@ -1,0 +1,257 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AWS SBG Media Portal storage. A PRIVATE S3 bucket, a CloudFront CDN that can
+  read only the public folders (web/ thumb/ poster/ video/), the IAM policy the
+  Next.js app needs, and a monthly cost alert. See infra/README.md.
+
+# ----------------------------------------------------------------------------
+# What this creates, and the one rule that matters:
+#
+#   events/{eventId}/original/{mediaId}.{ext}   PRIVATE  (image uploads)
+#   events/{eventId}/video/{mediaId}.{ext}      public via CloudFront
+#   events/{eventId}/web/{mediaId}.webp         public via CloudFront
+#   events/{eventId}/thumb/{mediaId}.webp       public via CloudFront
+#   events/{eventId}/poster/{mediaId}.webp      public via CloudFront
+#
+# The bucket itself has Block Public Access ON. CloudFront reads it through
+# Origin Access Control, and the bucket policy lets CloudFront read ONLY the
+# four public folders. Asking CloudFront for original/ therefore returns 403.
+# ----------------------------------------------------------------------------
+
+Parameters:
+  BucketName:
+    Type: String
+    Default: aws-sbg-media-prod
+    AllowedPattern: "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+    ConstraintDescription: 3-63 chars, lowercase letters, numbers, dots and hyphens.
+    Description: Globally unique S3 bucket name.
+
+  SiteOrigins:
+    Type: CommaDelimitedList
+    Default: "http://localhost:3000"
+    Description: >
+      Origins allowed to upload from the browser (CORS), comma separated, no
+      trailing slash. Add your real site, e.g.
+      https://main.d1234abcd.amplifyapp.com,https://sbg.example.com
+
+  AppRoleName:
+    Type: String
+    Default: ""
+    Description: >
+      OPTIONAL. Name (not ARN) of the IAM role your Amplify app runs with. If
+      set, the app policy is attached to it automatically. If empty, attach the
+      policy from the AppPolicyArn output yourself.
+
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: OPTIONAL. Email for the monthly cost alert. Leave empty to skip the alert.
+
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: Alert when forecasted or actual monthly cost passes 80 percent of this.
+
+Conditions:
+  HasAppRole: !Not [!Equals [!Ref AppRoleName, ""]]
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Resources:
+  # --------------------------------------------------------------------------
+  # The bucket: private, encrypted, no ACLs, upload CORS for the site only.
+  # --------------------------------------------------------------------------
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain          # deleting the stack must never delete the photos
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: !Ref SiteOrigins
+            AllowedMethods: [POST]          # presigned POST uploads from the browser
+            AllowedHeaders: ["*"]
+            ExposedHeaders: [ETag]
+            MaxAge: 3000
+      LifecycleConfiguration:
+        Rules:
+          - Id: abort-incomplete-multipart-uploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: expire-tmp-objects
+            Status: Enabled
+            Prefix: tmp/
+            ExpirationInDays: 1
+
+  # Deny any request that is not HTTPS.
+  MediaBucketTlsPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt MediaBucket.Arn
+              - !Sub "${MediaBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+          # CloudFront (this distribution only) may read the PUBLIC folders and nothing else.
+          - Sid: AllowCloudFrontReadPublicFolders
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: "s3:GetObject"
+            Resource:
+              - !Sub "${MediaBucket.Arn}/events/*/web/*"
+              - !Sub "${MediaBucket.Arn}/events/*/thumb/*"
+              - !Sub "${MediaBucket.Arn}/events/*/poster/*"
+              - !Sub "${MediaBucket.Arn}/events/*/video/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MediaDistribution}"
+
+  # --------------------------------------------------------------------------
+  # CloudFront in front of the bucket (Origin Access Control, the current
+  # replacement for the older Origin Access Identity).
+  # --------------------------------------------------------------------------
+  MediaOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-media-oac"
+        Description: Lets CloudFront sign requests to the private media bucket
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  MediaDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${AWS::StackName} media CDN"
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200      # North America, Europe, Asia (includes India), Middle East, Africa
+        Origins:
+          - Id: media-s3
+            DomainName: !GetAtt MediaBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt MediaOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""   # required empty when using OAC
+        DefaultCacheBehavior:
+          TargetOriginId: media-s3
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6            # AWS managed: CachingOptimized
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03  # AWS managed: SecurityHeadersPolicy
+
+  # --------------------------------------------------------------------------
+  # Permissions the Next.js app needs. Least privilege, no access keys:
+  # attach this to the IAM role the Amplify app runs with.
+  # --------------------------------------------------------------------------
+  AppPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Lets the SBG website sign uploads and manage event media. Nothing else.
+      Roles: !If [HasAppRole, [!Ref AppRoleName], !Ref "AWS::NoValue"]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # Sign presigned-POST uploads: the signer must itself be allowed to write there.
+          - Sid: UploadEventMedia
+            Effect: Allow
+            Action: "s3:PutObject"
+            Resource:
+              - !Sub "${MediaBucket.Arn}/events/*/original/*"
+              - !Sub "${MediaBucket.Arn}/events/*/video/*"
+          # Read back: HeadObject (did the upload arrive?) and Range reads (check the real file type).
+          - Sid: ReadEventMedia
+            Effect: Allow
+            Action: "s3:GetObject"
+            Resource: !Sub "${MediaBucket.Arn}/events/*"
+          # Takedowns and cleanup of abandoned uploads.
+          - Sid: DeleteEventMedia
+            Effect: Allow
+            Action: "s3:DeleteObject"
+            Resource: !Sub "${MediaBucket.Arn}/events/*"
+          # Without ListBucket, HeadObject on a missing key returns 403 instead of 404,
+          # and the app could not tell "not uploaded yet" from "access denied".
+          - Sid: ListEventPrefixOnly
+            Effect: Allow
+            Action: "s3:ListBucket"
+            Resource: !GetAtt MediaBucket.Arn
+            Condition:
+              StringLike:
+                "s3:prefix": "events/*"
+
+  # --------------------------------------------------------------------------
+  # Cost guard: video is the thing that can surprise you on the bill.
+  # --------------------------------------------------------------------------
+  MonthlyCostBudget:
+    Type: AWS::Budgets::Budget
+    Condition: HasAlertEmail
+    Properties:
+      Budget:
+        BudgetName: !Sub "${AWS::StackName}-monthly"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+Outputs:
+  BucketName:
+    Description: Set as S3_BUCKET in the Amplify environment variables.
+    Value: !Ref MediaBucket
+  BucketRegion:
+    Description: Set as S3_REGION in the Amplify environment variables.
+    Value: !Ref "AWS::Region"
+  MediaCdnUrl:
+    Description: Set as MEDIA_CDN_URL in the Amplify environment variables.
+    Value: !Sub "https://${MediaDistribution.DomainName}"
+  DistributionId:
+    Value: !Ref MediaDistribution
+  AppPolicyArn:
+    Description: Attach this to the IAM role your Amplify app runs with (if AppRoleName was empty).
+    Value: !Ref AppPolicy

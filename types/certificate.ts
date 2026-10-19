@@ -27,6 +27,9 @@ export interface DbEvent {
   event_timing: string | null;     // Display-oriented, e.g. "11:00 AM - 12:30 PM" or null if TBA
   speaker_name: string | null;
   attendance_open: boolean;
+  poster_url?: string | null;
+  photos?: string[] | null;
+  event_type?: string | null;       // Category: "Workshop" | "Hackathon" | "Quiz" | "Event" | custom
 }
 
 export interface DbAttendance {
@@ -195,6 +198,7 @@ export interface AdminEventRequest {
   speakerName?: string;
   attendanceOpen?: boolean;
   setAsActive?: boolean;       // If true, sets this event as the active portal event
+  eventType?: string | null;   // Category: "Workshop" | "Hackathon" | "Quiz" | "Event" | custom
 }
 
 /**

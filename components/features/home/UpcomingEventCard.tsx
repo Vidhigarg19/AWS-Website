@@ -41,26 +41,11 @@ function parseEventDate(iso: string | null) {
   }
 }
 
-/** Fallback visual presets for past events cards if DB has fewer than 3 */
-const DEFAULT_PAST_EVENTS = [
-  {
-    title: "AWS Cloud Fundamentals Workshop",
-    date: "12 Apr 2025",
-    image:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    title: "Build with AWS - Hackathon",
-    date: "20 Feb 2025",
-    image:
-      "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    title: "Career in Cloud - Panel Talk",
-    date: "10 Jan 2025",
-    image:
-      "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=600&q=80",
-  },
+/** Curated conference backdrops for past events cards */
+const PAST_EVENT_IMAGES = [
+  "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=600&q=80",
 ];
 
 export default function UpcomingEventCard() {
@@ -68,7 +53,7 @@ export default function UpcomingEventCard() {
   const [upcomingEvent, setUpcomingEvent] = React.useState<DbEvent | null>(null);
   const [pastEvents, setPastEvents] = React.useState<
     { title: string; date: string; image: string }[]
-  >(DEFAULT_PAST_EVENTS);
+  >([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -85,47 +70,49 @@ export default function UpcomingEventCard() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Upcoming events sorted earliest first
+        // Upcoming events: future dated events or TBA (null/empty date), sorted earliest first
         const upcoming = json.data
           .filter((item) => {
+            if (!item.event_date || item.event_date.trim() === "") return true;
             const d = new Date(item.event_date + "T00:00:00");
             return !isNaN(d.getTime()) && d >= today;
           })
-          .sort(
-            (a, b) =>
-              new Date(a.event_date + "T00:00:00").getTime() -
-              new Date(b.event_date + "T00:00:00").getTime()
-          );
+          .sort((a, b) => {
+            if (!a.event_date) return 1;
+            if (!b.event_date) return -1;
+            const timeA = new Date(a.event_date + "T00:00:00").getTime();
+            const timeB = new Date(b.event_date + "T00:00:00").getTime();
+            return timeA - timeB;
+          });
 
-        // Past events sorted latest first
+        // Past events: strictly genuine events with a valid date before today, sorted latest first (up to 3 recent, NO presets)
         const past = json.data
           .filter((item) => {
+            if (!item.event_date || item.event_date.trim() === "") return false;
             const d = new Date(item.event_date + "T00:00:00");
             return !isNaN(d.getTime()) && d < today;
           })
-          .sort(
-            (a, b) =>
-              new Date(b.event_date + "T00:00:00").getTime() -
-              new Date(a.event_date + "T00:00:00").getTime()
-          );
+          .sort((a, b) => {
+            const timeA = new Date((a.event_date ?? "") + "T00:00:00").getTime();
+            const timeB = new Date((b.event_date ?? "") + "T00:00:00").getTime();
+            return timeB - timeA;
+          });
 
         if (isMounted) {
           if (upcoming.length > 0) {
             setUpcomingEvent(upcoming[0]);
           }
 
-          // Merge past events with realistic imagery
+          // Strictly map ONLY genuine past events from database (up to 3 recent, NO mock filler)
           if (past.length > 0) {
             const mappedPast = past.slice(0, 3).map((item, idx) => ({
               title: item.name,
               date: parseEventDate(item.event_date ?? "").formatted,
-              image: DEFAULT_PAST_EVENTS[idx % DEFAULT_PAST_EVENTS.length].image,
+              image: PAST_EVENT_IMAGES[idx % PAST_EVENT_IMAGES.length],
             }));
-            // Fill remainder with presets if fewer than 3
-            while (mappedPast.length < 3) {
-              mappedPast.push(DEFAULT_PAST_EVENTS[mappedPast.length]);
-            }
             setPastEvents(mappedPast);
+          } else {
+            setPastEvents([]);
           }
         }
       } catch (err) {
@@ -251,8 +238,8 @@ export default function UpcomingEventCard() {
 
           {/* ── THE FEATURED UPCOMING EVENT CARD ── */}
           <div className="upcoming-featured-card relative mt-8 sm:mt-12">
-            {/* Peeking AWS Cloud Mascot (Positioned between upcoming event label and Register button) */}
-            <div className="absolute -top-16 sm:-top-24 md:-top-28 right-36 sm:right-52 md:right-64 lg:right-72 w-24 sm:w-32 md:w-36 z-20 pointer-events-none select-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
+            {/* Peeking AWS Cloud Mascot for Desktop (Positioned on top border between upcoming event label and Register button) */}
+            <div className="hidden lg:block absolute -top-24 xl:-top-28 right-56 xl:right-72 w-32 xl:w-36 z-20 pointer-events-none select-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
               <Image
                 src="/chatbotmascot.webp"
                 alt="AWS Builder Mascot"
@@ -285,8 +272,8 @@ export default function UpcomingEventCard() {
                   </div>
 
                   {/* Top Bar of Poster */}
-                  <div className="relative z-10 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                  <div className="relative z-10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Image
                         src="/logos/AWS_logo.svg"
                         alt="AWS"
@@ -299,6 +286,18 @@ export default function UpcomingEventCard() {
                         <br />
                         BUILDER GROUP
                       </div>
+                    </div>
+
+                    {/* Mobile Mascot: Positioned cleanly between Student Builder Group text and SBG logo */}
+                    <div className="flex lg:hidden items-center justify-center shrink-0 pointer-events-none select-none">
+                      <Image
+                        src="/chatbotmascot.png"
+                        alt="AWS Builder Mascot"
+                        width={48}
+                        height={48}
+                        className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]"
+                        priority
+                      />
                     </div>
 
                     <div className="w-7 h-7 rounded-full border border-primary/30 bg-white/[0.05] p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
@@ -329,7 +328,7 @@ export default function UpcomingEventCard() {
                   <div className="relative z-10 flex items-center">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-white/10 text-[11px] text-white/90 backdrop-blur-md">
                       <MapPin className="w-3 h-3 text-primary-light shrink-0" />
-                      <span className="truncate">Tula&apos;s University, Dehradun</span>
+                      <span className="truncate">Tulas University, Dehradun</span>
                     </div>
                   </div>
                 </div>
@@ -415,7 +414,7 @@ export default function UpcomingEventCard() {
                         Venue
                       </div>
                       <div className="text-xs sm:text-sm font-bold text-white mt-0.5">
-                        Tula&apos;s University
+                        Tulas University
                       </div>
                       <div className="text-[11px] text-white/60">Dehradun</div>
                     </div>
@@ -431,71 +430,91 @@ export default function UpcomingEventCard() {
         {/* ── BOTTOM SECTION: "Moments from Our Journey." (PAST EVENTS) ─── */}
         {/* ════════════════════════════════════════════════════════════════ */}
 
-        <div className="upcoming-past-section mt-12 sm:mt-16 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-          {/* Left Title Block */}
-          <div className="lg:col-span-3 flex flex-col justify-center space-y-2">
-            <div className="inline-flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-sm bg-primary-light" />
-              <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/70 font-semibold">
-                OUR PAST EVENTS
-              </span>
-              <span className="w-6 h-px bg-white/20" />
+        {pastEvents.length > 0 && (
+          <div className="upcoming-past-section mt-12 sm:mt-16 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+            {/* Left Title Block */}
+            <div
+              className={
+                pastEvents.length === 1
+                  ? "lg:col-span-4 flex flex-col justify-center space-y-2"
+                  : "lg:col-span-3 flex flex-col justify-center space-y-2"
+              }
+            >
+              <div className="inline-flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-sm bg-primary-light" />
+                <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/70 font-semibold">
+                  OUR PAST EVENTS
+                </span>
+                <span className="w-6 h-px bg-white/20" />
+              </div>
+
+              <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                Moments from <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-light via-purple-300 to-accent">
+                  Our Journey.
+                </span>
+              </h3>
             </div>
 
-            <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-              Moments from <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-light via-purple-300 to-accent">
-                Our Journey.
-              </span>
-            </h3>
-          </div>
+            {/* Genuine Past Events Photo Cards (strictly 1, 2, or up to 3 recent) */}
+            <div
+              className={
+                pastEvents.length === 1
+                  ? "lg:col-span-5 grid grid-cols-1 gap-3.5"
+                  : pastEvents.length === 2
+                  ? "lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5"
+                  : "lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3.5"
+              }
+            >
+              {pastEvents.map((item, index) => (
+                <div
+                  key={index}
+                  className="group relative rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-primary/40 transition-all duration-300 flex flex-col justify-between"
+                >
+                  {/* Image Frame */}
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/40">
+                    <Image
+                      src={item.image}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0C0B14] via-transparent to-transparent opacity-80" />
+                  </div>
 
-          {/* 3 Past Events Photo Cards */}
-          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            {pastEvents.map((item, index) => (
-              <div
-                key={index}
-                className="group relative rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-primary/40 transition-all duration-300 flex flex-col justify-between"
-              >
-                {/* Image Frame */}
-                <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/40">
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, 33vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0C0B14] via-transparent to-transparent opacity-80" />
-                </div>
-
-                {/* Card Info */}
-                <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-grow">
-                  <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-1 group-hover:text-primary-light transition-colors">
-                    {item.title}
-                  </h4>
-                  <div className="flex items-center gap-1.5 mt-2 text-[11px] text-white/60">
-                    <Calendar className="w-3.5 h-3.5 text-primary-light shrink-0" />
-                    <span>{item.date}</span>
+                  {/* Card Info */}
+                  <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-grow">
+                    <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-1 group-hover:text-primary-light transition-colors">
+                      {item.title}
+                    </h4>
+                    <div className="flex items-center gap-1.5 mt-2 text-[11px] text-white/60">
+                      <Calendar className="w-3.5 h-3.5 text-primary-light shrink-0" />
+                      <span>{item.date}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Rightmost "View Our Past Events" Card -> Navigates to /events */}
-          <Link
-            href="/events"
-            className="lg:col-span-2 group rounded-2xl border border-primary/30 bg-gradient-to-b from-white/[0.06] to-white/[0.02] hover:bg-white/[0.09] hover:border-primary/60 transition-all duration-300 p-5 flex flex-col items-center justify-center text-center cursor-pointer shadow-lg hover:shadow-primary/10"
-          >
-            <span className="text-xs sm:text-sm font-bold text-white group-hover:text-primary-light transition-colors leading-snug">
-              View Our Past Events
-            </span>
-            <div className="w-10 h-10 mt-4 rounded-full border border-primary/40 bg-primary/10 flex items-center justify-center text-primary-light group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-md">
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              ))}
             </div>
-          </Link>
-        </div>
+
+            {/* Rightmost "View Our Past Events" Card -> Navigates to /events */}
+            <Link
+              href="/events"
+              className={
+                pastEvents.length === 3
+                  ? "lg:col-span-2 group rounded-2xl border border-primary/30 bg-gradient-to-b from-white/[0.06] to-white/[0.02] hover:bg-white/[0.09] hover:border-primary/60 transition-all duration-300 p-5 flex flex-col items-center justify-center text-center cursor-pointer shadow-lg hover:shadow-primary/10"
+                  : "lg:col-span-3 group rounded-2xl border border-primary/30 bg-gradient-to-b from-white/[0.06] to-white/[0.02] hover:bg-white/[0.09] hover:border-primary/60 transition-all duration-300 p-5 flex flex-col items-center justify-center text-center cursor-pointer shadow-lg hover:shadow-primary/10"
+              }
+            >
+              <span className="text-xs sm:text-sm font-bold text-white group-hover:text-primary-light transition-colors leading-snug">
+                View Our Past Events
+              </span>
+              <div className="w-10 h-10 mt-4 rounded-full border border-primary/40 bg-primary/10 flex items-center justify-center text-primary-light group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-md">
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

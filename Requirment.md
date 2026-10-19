@@ -705,7 +705,7 @@ Issue Date
 
 Issued By:
 AWS Student Builder Group
-Tula's University
+Tulas University
 
 Certificate Preview
 

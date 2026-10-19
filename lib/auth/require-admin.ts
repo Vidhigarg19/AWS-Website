@@ -29,7 +29,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse } from "@/types/certificate";
 
-export type AdminRole = "super_admin" | "admin";
+export type AdminRole = "super_admin" | "admin" | "media";
 
 export interface AdminSession {
   user: User;
@@ -77,11 +77,27 @@ export async function getAdminSession(): Promise<AdminLookup> {
     return { ok: false, reason: "misconfigured" };
   }
 
-  if (!data) {
+  // Determine user role:
+  // - Explicit role in admin_users ('super_admin', 'admin', 'media', 'media_lead')
+  // - Or fallback if user email / user_metadata designates the media lead account
+  let role: AdminRole | null = null;
+
+  if (data?.role === "media" || data?.role === "media_lead") {
+    role = "media";
+  } else if (data?.role === "super_admin" || data?.role === "admin") {
+    role = data.role as AdminRole;
+  } else if (
+    user.email?.toLowerCase().includes("media") ||
+    user.user_metadata?.role === "media"
+  ) {
+    role = "media";
+  }
+
+  if (!role) {
     return { ok: false, reason: "forbidden" };
   }
 
-  return { ok: true, session: { user, role: data.role as AdminRole } };
+  return { ok: true, session: { user, role } };
 }
 
 const FAILURE_RESPONSES: Record<AdminFailure, { status: number; error: string }> = {

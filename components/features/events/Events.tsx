@@ -12,6 +12,8 @@ import {
   Layers,
   Award,
   Zap,
+  Camera,
+  ArrowRight,
 } from "lucide-react";
 import { SquareArrowOutUpRight } from "@/components/ui/animate-ui/icons/square-arrow-out-up-right";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
@@ -28,6 +30,7 @@ import {
 } from "@/components/ui/timeline";
 import { SuggestEventSection } from "@/components/features/events/SuggestEventSection";
 import type { ApiResponse, DbEvent } from "@/types/certificate";
+import { cn } from "@/lib/utils";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -145,19 +148,22 @@ function StatusIndicator({ status }: { status: EventStatus }) {
   );
 }
 
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, className }: { event: Event; className?: string }) {
   const isPast = event.status === "past";
   const isCurrent = event.status === "current";
 
   return (
     <SpotlightCard
-      className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border transition-all duration-300 flex flex-col h-full",
         isCurrent
           ? "border-primary/40 bg-bg-card/90 shadow-[0_12px_40px_-15px_rgba(124,58,237,0.25)] ring-1 ring-primary/20"
           : isPast
           ? "border-border/60 bg-bg-card/50 hover:border-border hover:bg-bg-card/70"
-          : "border-border/80 bg-bg-card/75 hover:border-primary/30 hover:shadow-lg"
-      }`}
+          : "border-border/80 bg-bg-card/75 hover:border-primary/30 hover:shadow-lg",
+        className
+      )}
+      contentClassName="h-full flex flex-col flex-1"
       spotlightColor={
         isCurrent
           ? "rgba(167, 139, 250, 0.025)"
@@ -178,8 +184,8 @@ function EventCard({ event }: { event: Event }) {
         <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 h-32 w-64 rounded-full bg-primary/20 blur-2xl" />
       )}
 
-      <div className="p-5 sm:p-6 flex flex-col justify-between h-full">
-        <div>
+      <div className="p-5 sm:p-6 flex flex-col justify-between h-full flex-1">
+        <div className="flex-1 flex flex-col">
           {/* Top row: Status + Category Tag + Registrations Open Pill */}
           <div className="flex flex-wrap items-center justify-between gap-2.5 mb-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -212,14 +218,18 @@ function EventCard({ event }: { event: Event }) {
           </h3>
 
           {/* Description */}
-          {event.description && (
+          {event.description ? (
             <p className="mt-2.5 text-[14px] leading-relaxed text-text-secondary/90 line-clamp-3">
               {event.description}
+            </p>
+          ) : (
+            <p className="mt-2.5 text-[14px] leading-relaxed text-text-secondary/50 italic line-clamp-3">
+              Official community session & workshop.
             </p>
           )}
 
           {/* Metadata Chips: Date, Timing, Speaker */}
-          <div className="mt-5 pt-4 border-t border-white/[0.05] grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="mt-auto pt-5 border-t border-white/[0.05] grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* Date Chip */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-text-secondary">
               <Calendar className="w-3.5 h-3.5 text-primary-light shrink-0" />
@@ -233,11 +243,18 @@ function EventCard({ event }: { event: Event }) {
             </div>
 
             {/* Speaker Chip */}
-            {event.speakerName && (
+            {event.speakerName ? (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-text-secondary sm:col-span-2">
                 <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="font-medium truncate">
                   Keynote: <strong className="text-white font-semibold">{event.speakerName}</strong>
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-text-secondary sm:col-span-2">
+                <User className="w-3.5 h-3.5 text-primary-light/80 shrink-0" />
+                <span className="font-medium truncate">
+                  Host: <strong className="text-white font-semibold">AWS Student Builder Group</strong>
                 </span>
               </div>
             )}
@@ -245,7 +262,7 @@ function EventCard({ event }: { event: Event }) {
         </div>
 
         {/* Action Strip (Footer) */}
-        <div className="mt-6 pt-4 border-t border-white/[0.05]">
+        <div className="mt-5 pt-4 border-t border-white/[0.05]">
           {!isPast ? (
             /* Upcoming / Up Next: Prominent CTA to Meetup Registration */
             <div className="flex items-center justify-between gap-3">
@@ -263,18 +280,19 @@ function EventCard({ event }: { event: Event }) {
               </span>
             </div>
           ) : (
-            /* Concluded Event: Verify credentials */
+            /* Concluded Event: View the Moments in Gallery */
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-mono text-muted flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/70" />
                 Session Concluded
               </span>
               <Link
-                href="/verify"
-                className="inline-flex items-center gap-1.5 text-xs text-primary-light hover:text-white transition-colors font-medium cursor-pointer"
+                href="/gallery"
+                className="group/btn inline-flex items-center gap-1.5 text-xs text-primary-light hover:text-white transition-colors font-medium cursor-pointer"
               >
-                <span>Verify Credential</span>
-                <ExternalLink className="w-3 h-3" />
+                <Camera className="w-3.5 h-3.5 text-primary-light/80 group-hover/btn:text-white transition-colors" />
+                <span>View the Moments</span>
+                <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
               </Link>
             </div>
           )}
@@ -287,19 +305,26 @@ function EventCard({ event }: { event: Event }) {
 /** Animated placeholder shown while data loads */
 function EventCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-bg-card/40 p-5 sm:p-6 animate-pulse space-y-3">
-      <div className="flex gap-2">
-        <div className="h-5 w-16 rounded-full bg-white/[0.06]" />
-        <div className="h-5 w-20 rounded-full bg-white/[0.06]" />
+    <div className="rounded-2xl border border-border bg-bg-card/40 p-5 sm:p-6 animate-pulse flex flex-col justify-between h-full space-y-4">
+      <div className="space-y-3 flex-1">
+        <div className="flex gap-2">
+          <div className="h-5 w-16 rounded-full bg-white/[0.06]" />
+          <div className="h-5 w-20 rounded-full bg-white/[0.06]" />
+        </div>
+        <div className="h-6 w-3/4 rounded bg-white/[0.06]" />
+        <div className="space-y-2">
+          <div className="h-4 w-full rounded bg-white/[0.04]" />
+          <div className="h-4 w-5/6 rounded bg-white/[0.04]" />
+        </div>
+        <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="h-8 rounded-xl bg-white/[0.04]" />
+          <div className="h-8 rounded-xl bg-white/[0.04]" />
+          <div className="h-8 rounded-xl bg-white/[0.04] sm:col-span-2" />
+        </div>
       </div>
-      <div className="h-6 w-3/4 rounded bg-white/[0.06]" />
-      <div className="space-y-2">
-        <div className="h-4 w-full rounded bg-white/[0.04]" />
-        <div className="h-4 w-5/6 rounded bg-white/[0.04]" />
-      </div>
-      <div className="flex gap-4 pt-1">
+      <div className="pt-4 border-t border-white/[0.05] flex justify-between items-center">
         <div className="h-4 w-28 rounded bg-white/[0.04]" />
-        <div className="h-4 w-36 rounded bg-white/[0.04]" />
+        <div className="h-4 w-24 rounded bg-white/[0.04]" />
       </div>
     </div>
   );
@@ -349,6 +374,20 @@ export function Events() {
         const mapped: Event[] = rawEvents.map((row: DbEvent) => {
           const eventDate = row.event_date ?? "";
           const status = computeStatus(eventDate, firstFutureId, row.id);
+          const eventTag = row.event_type || "Event";
+          const tagColorMap: Record<string, string> = {
+            Workshop:  status === "past" ? "bg-violet-500/10 text-violet-400/60"  : status === "current" ? "bg-violet-500/20 text-violet-300 border border-violet-400/30" : "bg-violet-500/10 text-violet-300",
+            Hackathon: status === "past" ? "bg-amber-500/10 text-amber-400/60"    : status === "current" ? "bg-amber-500/20 text-amber-300 border border-amber-400/30"    : "bg-amber-500/10 text-amber-300",
+            Quiz:      status === "past" ? "bg-sky-500/10 text-sky-400/60"        : status === "current" ? "bg-sky-500/20 text-sky-300 border border-sky-400/30"          : "bg-sky-500/10 text-sky-300",
+            Event:     status === "past" ? "bg-emerald-500/10 text-emerald-400/60": status === "current" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" : "bg-emerald-500/10 text-emerald-300",
+          };
+          const tagColor = tagColorMap[eventTag] ?? (
+            status === "past"
+              ? "bg-muted/10 text-muted"
+              : status === "current"
+              ? "bg-primary/20 text-primary-light border border-primary/30"
+              : "bg-primary/10 text-primary-light"
+          );
           return {
             id: row.id,
             title: row.name,
@@ -358,13 +397,8 @@ export function Events() {
             isoDate: status !== "past" && eventDate ? eventDate + "T00:00:00" : "",
             speakerName: row.speaker_name,
             attendanceOpen: row.attendance_open,
-            tag: "Workshop",
-            tagColor:
-              status === "past"
-                ? "bg-muted/10 text-muted"
-                : status === "current"
-                ? "bg-primary/20 text-primary-light border border-primary/30"
-                : "bg-primary/10 text-primary-light",
+            tag: eventTag,
+            tagColor,
             dotColor: status === "past" ? "text-muted" : "text-primary-light",
             description: row.description ?? "",
             status,
@@ -495,7 +529,7 @@ export function Events() {
             </h1>
 
             <p className="max-w-xl text-[15px] sm:text-[16px] leading-relaxed text-text-secondary">
-              Hands-on cloud workshops, live architectural teardowns, hackathons, and certification study sprints hosted by the AWS Student Builder Group at Tula&apos;s University.
+              Hands-on cloud workshops, live architectural teardowns, hackathons, and certification study sprints hosted by the AWS Student Builder Group at Tulas University.
             </p>
 
             {/* Quick Value Points */}
@@ -533,6 +567,11 @@ export function Events() {
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                       <span className="text-[10.5px] font-mono uppercase tracking-wider font-semibold text-emerald-400">
                         Next Upcoming Event
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide ${nextEvent.tagColor}`}
+                      >
+                        {nextEvent.tag}
                       </span>
                     </div>
 
@@ -755,10 +794,10 @@ export function Events() {
             </div>
 
             {/* Grid of Concluded Event Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
               {pastEvents.map((event) => (
-                <div key={event.id} className="concluded-event-item">
-                  <EventCard event={event} />
+                <div key={event.id} className="concluded-event-item h-full flex flex-col">
+                  <EventCard event={event} className="h-full flex-1" />
                 </div>
               ))}
             </div>

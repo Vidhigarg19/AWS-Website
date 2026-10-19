@@ -27,18 +27,61 @@ function AdminNavbarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [isMediaLead, setIsMediaLead] = useState(false);
+
+  // Check role on mount
+  useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        if (
+          user.email?.toLowerCase().includes("media") ||
+          user.user_metadata?.role === "media"
+        ) {
+          setIsMediaLead(true);
+          setActiveTab("events");
+          return;
+        }
+
+        const { data } = await supabase
+          .from("admin_users")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (data?.role === "media" || data?.role === "media_lead") {
+          setIsMediaLead(true);
+          setActiveTab("events");
+        }
+      } catch {
+        // fail gracefully
+      }
+    };
+    checkRole();
+  }, []);
 
   // Sync from URL search params
   useEffect(() => {
+    if (isMediaLead) {
+      setActiveTab("events");
+      return;
+    }
     const tab = searchParams.get("tab") as AdminTab | null;
     if (tab && NAV_LINKS.some((l) => l.id === tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, isMediaLead]);
 
   // Sync from custom window event
   useEffect(() => {
     const handler = (e: Event) => {
+      if (isMediaLead) return;
       const custom = e as CustomEvent<AdminTab>;
       if (custom.detail) {
         setActiveTab(custom.detail);
@@ -46,10 +89,11 @@ function AdminNavbarContent() {
     };
     window.addEventListener("admin-tab-change", handler);
     return () => window.removeEventListener("admin-tab-change", handler);
-  }, []);
+  }, [isMediaLead]);
 
   const handleTabClick = useCallback(
     (tabId: AdminTab) => {
+      if (isMediaLead && tabId !== "events") return;
       setActiveTab(tabId);
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
@@ -59,7 +103,7 @@ function AdminNavbarContent() {
       }
       router.push(`/admin?tab=${tabId}`, { scroll: false });
     },
-    [router]
+    [router, isMediaLead]
   );
 
   return (
@@ -107,7 +151,7 @@ function AdminNavbarContent() {
             aria-label="Admin functions navigation"
             className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full"
           >
-            {NAV_LINKS.map((link) => {
+            {(isMediaLead ? NAV_LINKS.filter((l) => l.id === "events") : NAV_LINKS).map((link) => {
               const Icon = link.icon;
               const isActive = activeTab === link.id;
               return (
@@ -127,6 +171,11 @@ function AdminNavbarContent() {
                 </button>
               );
             })}
+            {isMediaLead && (
+              <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold ml-1 shrink-0">
+                Media Studio
+              </span>
+            )}
           </nav>
         </div>
       </div>

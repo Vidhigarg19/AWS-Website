@@ -38,6 +38,9 @@ import {
   UserPlus,
   ImageIcon,
   GraduationCap,
+  Trophy,
+  HelpCircle,
+  PenTool,
   Briefcase,
   Upload,
   Camera,
@@ -101,8 +104,47 @@ function AdminPageContent() {
 
   // Navigation State
   const [activeTab, setActiveTabState] = useState<AdminTab>("overview");
+  const [isMediaLead, setIsMediaLead] = useState(false);
+
+  // Check role on mount
+  useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        if (
+          user.email?.toLowerCase().includes("media") ||
+          user.user_metadata?.role === "media"
+        ) {
+          setIsMediaLead(true);
+          setActiveTabState("events");
+          return;
+        }
+
+        const { data } = await supabase
+          .from("admin_users")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (data?.role === "media" || data?.role === "media_lead") {
+          setIsMediaLead(true);
+          setActiveTabState("events");
+        }
+      } catch (err) {
+        console.error("Failed to check admin role:", err);
+      }
+    };
+    checkRole();
+  }, []);
 
   const setActiveTab = useCallback((tab: AdminTab) => {
+    if (isMediaLead && tab !== "events") return;
     setActiveTabState(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -110,9 +152,13 @@ function AdminPageContent() {
       window.history.replaceState({}, "", url.toString());
       window.dispatchEvent(new CustomEvent("admin-tab-change", { detail: tab }));
     }
-  }, []);
+  }, [isMediaLead]);
 
   useEffect(() => {
+    if (isMediaLead) {
+      setActiveTabState("events");
+      return;
+    }
     const tabParam = searchParams.get("tab") as AdminTab | null;
     if (
       tabParam &&
@@ -120,10 +166,11 @@ function AdminPageContent() {
     ) {
       setActiveTabState(tabParam);
     }
-  }, [searchParams]);
+  }, [searchParams, isMediaLead]);
 
   useEffect(() => {
     const handler = (e: Event) => {
+      if (isMediaLead) return;
       const customEvent = e as CustomEvent<AdminTab>;
       if (customEvent.detail) {
         setActiveTabState(customEvent.detail);
@@ -131,7 +178,7 @@ function AdminPageContent() {
     };
     window.addEventListener("admin-tab-change", handler);
     return () => window.removeEventListener("admin-tab-change", handler);
-  }, []);
+  }, [isMediaLead]);
 
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [portalConfig, setPortalConfig] = useState<DbPortalConfig | null>(null);
@@ -151,6 +198,8 @@ function AdminPageContent() {
     speakerName: "",
     attendanceOpen: true,
     setAsActive: false,
+    eventType: "" as string,
+    customEventType: "",
   });
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -224,6 +273,15 @@ function AdminPageContent() {
   const [bulkDragActive, setBulkDragActive] = useState(false);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
   const [bulkImportMode, setBulkImportMode] = useState<"append" | "overwrite">("append");
+  // ── Media Assets Modal State (Media Lead / Event Media) ─────
+  const [selectedMediaEvent, setSelectedMediaEvent] = useState<DbEvent | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const posterInputRef = useRef<HTMLInputElement>(null);
+  const photosInputRef = useRef<HTMLInputElement>(null);
 
   // ── Custom Confirmation Modal State ───────────────────────
   const [confirmModal, setConfirmModal] = useState<{
@@ -318,8 +376,10 @@ function AdminPageContent() {
 
   useEffect(() => {
     fetchData();
-    fetchTeamMembers();
-  }, [fetchData, fetchTeamMembers]);
+    if (!isMediaLead) {
+      fetchTeamMembers();
+    }
+  }, [fetchData, fetchTeamMembers, isMediaLead]);
 
   // ── Fetch Participants for Selected Event ──────────────────
   const fetchParticipants = useCallback(async (eventId: string) => {
@@ -351,10 +411,10 @@ function AdminPageContent() {
   }, []);
 
   useEffect(() => {
-    if (selectedEventId) {
+    if (!isMediaLead && selectedEventId) {
       fetchParticipants(selectedEventId);
     }
-  }, [selectedEventId, fetchParticipants]);
+  }, [selectedEventId, fetchParticipants, isMediaLead]);
 
   // ── Auth ──────────────────────────────────────────────────
   const handleLogout = async () => {
@@ -376,6 +436,8 @@ function AdminPageContent() {
       speakerName: "",
       attendanceOpen: true,
       setAsActive: false,
+      eventType: "",
+      customEventType: "",
     });
     setIsTBA(false);
     setEditingEvent(null);
@@ -416,6 +478,9 @@ function AdminPageContent() {
     setEditingEvent(event);
     const eventIsTBA = !event.event_date || event.event_date.toLowerCase() === "tba" || !event.event_timing;
     setIsTBA(eventIsTBA);
+    const eventTypeSaved = event.event_type || "";
+    const knownTypes = ["Workshop", "Hackathon", "Quiz", "Event"];
+    const isKnown = knownTypes.includes(eventTypeSaved);
     setFormData({
       name: event.name,
       description: event.description || "",
@@ -424,6 +489,8 @@ function AdminPageContent() {
       speakerName: event.speaker_name || "",
       attendanceOpen: event.attendance_open,
       setAsActive: portalConfig?.active_event_id === event.id,
+      eventType: eventTypeSaved ? (isKnown ? eventTypeSaved : "Custom") : "",
+      customEventType: isKnown ? "" : eventTypeSaved,
     });
     setFormError("");
     setShowForm(true);
@@ -459,11 +526,17 @@ function AdminPageContent() {
         : "/api/admin/events";
       const method = editingEvent ? "PUT" : "POST";
 
+      const resolvedEventType =
+        formData.eventType === "Custom"
+          ? formData.customEventType.trim() || null
+          : formData.eventType.trim() || null;
+
       const payload = {
         ...formData,
         isTBA,
         eventDate: isTBA ? null : formData.eventDate,
         eventTiming: isTBA ? null : formData.eventTiming,
+        eventType: resolvedEventType,
       };
 
       const res = await fetch(url, {
@@ -631,6 +704,159 @@ function AdminPageContent() {
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
     toast.success(`${label} copied to clipboard`);
+  };
+
+  // ── Media Modal & Asset Handlers (Media Lead / Event Media)
+  const openMediaModal = (event: DbEvent) => {
+    setSelectedMediaEvent(event);
+    setPosterFile(null);
+    setPosterPreview(event.poster_url || null);
+    setPhotoFiles([]);
+    setPhotoPreviews(event.photos || []);
+  };
+
+  const closeMediaModal = () => {
+    if (posterPreview && posterPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(posterPreview);
+    }
+    photoPreviews.forEach((url) => {
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    });
+    setSelectedMediaEvent(null);
+    setPosterFile(null);
+    setPosterPreview(null);
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
+    setUploadingMedia(false);
+  };
+
+  const handlePosterSelect = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file (PNG, JPG, WebP).");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Poster image must be less than 10MB.");
+      return;
+    }
+    if (posterPreview && posterPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(posterPreview);
+    }
+
+    // Convert to WebP for consistent format across the site
+    try {
+      const { convertToWebp } = await import("@/lib/convert-to-webp");
+      const isAlreadyWebp = file.type === "image/webp";
+      if (!isAlreadyWebp) {
+        toast.loading("Converting to WebP…", { id: "webp-convert" });
+      }
+      const converted = await convertToWebp(file);
+      if (!isAlreadyWebp) {
+        toast.success(
+          `Converted "${file.name}" → "${converted.name}" (${(converted.size / 1024).toFixed(0)} KB)`,
+          { id: "webp-convert", duration: 3000 }
+        );
+      }
+      setPosterFile(converted);
+      setPosterPreview(URL.createObjectURL(converted));
+    } catch {
+      toast.error("WebP conversion failed — using original file.");
+      setPosterFile(file);
+      setPosterPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handlePhotosSelect = async (files: FileList | File[]) => {
+    const rawFiles = Array.from(files);
+    const validFiles: File[] = [];
+
+    for (const file of rawFiles) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`"${file.name}" is not an image file.`);
+        continue;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds 20MB limit.`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    const needsConversion = validFiles.some((f) => f.type !== "image/webp");
+    if (needsConversion) {
+      toast.loading(`Converting ${validFiles.length} photo(s) to WebP…`, { id: "photos-webp" });
+    }
+
+    try {
+      const { convertMultipleToWebp } = await import("@/lib/convert-to-webp");
+      const convertedFiles = await convertMultipleToWebp(validFiles);
+
+      const newPreviews = convertedFiles.map((file) => URL.createObjectURL(file));
+
+      setPhotoFiles((prev) => [...prev, ...convertedFiles]);
+      setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+
+      if (needsConversion) {
+        toast.success(
+          `${convertedFiles.length} photo(s) converted to WebP format!`,
+          { id: "photos-webp", duration: 3000 }
+        );
+      }
+    } catch {
+      toast.error("WebP conversion failed for some photos — keeping original format.", { id: "photos-webp" });
+      const fallbackPreviews = validFiles.map((file) => URL.createObjectURL(file));
+      setPhotoFiles((prev) => [...prev, ...validFiles]);
+      setPhotoPreviews((prev) => [...prev, ...fallbackPreviews]);
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    const previewToRemove = photoPreviews[index];
+    if (previewToRemove && previewToRemove.startsWith("blob:")) {
+      URL.revokeObjectURL(previewToRemove);
+    }
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // ── AWS S3 / Media Upload Integration Hook ────────────────
+  // The Tech Lead will connect this handler to AWS S3 bucket storage.
+  const handleSaveMedia = async () => {
+    if (!selectedMediaEvent) return;
+    if (!posterFile && photoFiles.length === 0) {
+      toast.error("Please select an event poster or photos to upload.");
+      return;
+    }
+
+    setUploadingMedia(true);
+    toast.loading("Preparing media assets for upload…", { id: "media-upload" });
+
+    try {
+      // Integration point for AWS S3 upload:
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      console.log("[AWS S3 Upload Hook Ready]", {
+        eventId: selectedMediaEvent.id,
+        eventName: selectedMediaEvent.name,
+        posterFile: posterFile ? { name: posterFile.name, size: posterFile.size, type: posterFile.type } : null,
+        photoCount: photoFiles.length,
+        photos: photoFiles.map((p) => ({ name: p.name, size: p.size, type: p.type })),
+      });
+
+      toast.success(
+        `Media assets uploaded successfully for "${selectedMediaEvent.name}"! (${posterFile ? "Poster" : ""}${posterFile && photoFiles.length ? " + " : ""}${photoFiles.length ? `${photoFiles.length} Photos` : ""})`,
+        { id: "media-upload", duration: 4000 }
+      );
+
+      closeMediaModal();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload media assets.", { id: "media-upload" });
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   // ── Team Member Form Handlers ─────────────────────────────
@@ -1224,21 +1450,46 @@ function AdminPageContent() {
         {/* ── Top Bar: Admin Portal Heading & Sign Out ───────────────────────── */}
         <div className="flex items-center justify-between gap-4 pb-6 border-b border-white/[0.06]">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#6C63FF]/20 via-[#6C63FF]/10 to-[#FF9900]/10 border border-white/[0.1] flex items-center justify-center text-[#A78BFA] shadow-[0_0_20px_rgba(108,99,255,0.15)] shrink-0">
-              <ShieldCheck className="w-5 h-5 text-[#A78BFA]" />
+            <div
+              className={cn(
+                "w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border flex items-center justify-center shrink-0",
+                isMediaLead
+                  ? "bg-gradient-to-br from-purple-500/20 via-[#6C63FF]/10 to-pink-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_20px_rgba(168,85,247,0.15)]"
+                  : "bg-gradient-to-br from-[#6C63FF]/20 via-[#6C63FF]/10 to-[#FF9900]/10 border-white/[0.1] text-[#A78BFA] shadow-[0_0_20px_rgba(108,99,255,0.15)]"
+              )}
+            >
+              {isMediaLead ? (
+                <Camera className="w-5 h-5 text-purple-300" />
+              ) : (
+                <ShieldCheck className="w-5 h-5 text-[#A78BFA]" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-display text-white tracking-tight truncate">
-                  Admin Portal
+                  {isMediaLead ? "Media Studio" : "Admin Portal"}
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-[#6C63FF]/10 text-[#A78BFA] border border-[#6C63FF]/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Console
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider",
+                    isMediaLead
+                      ? "bg-purple-500/15 text-purple-300 border border-purple-500/30"
+                      : "bg-[#6C63FF]/10 text-[#A78BFA] border border-[#6C63FF]/20"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full animate-pulse",
+                      isMediaLead ? "bg-purple-400" : "bg-emerald-400"
+                    )}
+                  />
+                  {isMediaLead ? "Media Lead" : "Console"}
                 </span>
               </div>
               <p className="text-xs text-[#71717A] mt-0.5 truncate hidden sm:block">
-                AWS Student Builder Group &bull; Operations &amp; Management Cockpit
+                {isMediaLead
+                  ? "AWS Student Builder Group \u2022 Event Posters & Photo Uploads"
+                  : "AWS Student Builder Group \u2022 Operations & Management Cockpit"}
               </p>
             </div>
           </div>
@@ -1271,7 +1522,7 @@ function AdminPageContent() {
             {/* ══════════════════════════════════════════════════ */}
             {/* ── OVERVIEW: EXECUTIVE SUMMARY OF ALL TABS ─────── */}
             {/* ══════════════════════════════════════════════════ */}
-            {activeTab === "overview" && (
+            {!isMediaLead && activeTab === "overview" && (
               <section className="space-y-6">
                 {/* Executive KPI Bar */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1838,7 +2089,7 @@ function AdminPageContent() {
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION A: CURRENT ACTIVE EVENT COCKPIT ─────── */}
             {/* ══════════════════════════════════════════════════ */}
-            {(activeTab === "settings" || activeTab === "events") && (
+            {!isMediaLead && (activeTab === "settings" || activeTab === "events") && (
               <section className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
@@ -1859,11 +2110,16 @@ function AdminPageContent() {
                     {/* Header Row */}
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                       <div className="space-y-3 max-w-2xl">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                           <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
                             Live Active Portal Event
                           </span>
+                          {activeEvent.event_type && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-mono font-medium uppercase tracking-wider bg-[#6C63FF]/20 border border-[#6C63FF]/40 text-[#A78BFA]">
+                              {activeEvent.event_type}
+                            </span>
+                          )}
                         </div>
 
                         <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
@@ -2006,23 +2262,27 @@ function AdminPageContent() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-bold text-white tracking-tight">
-                      All Events Catalog
+                      {isMediaLead ? "Events Media Catalog" : "All Events Catalog"}
                     </h3>
                     <p className="text-xs text-[#71717A]">
-                      Select an event to inspect attendee records or switch the active session
+                      {isMediaLead
+                        ? "Select any event to upload or update its promotional poster and gallery photos"
+                        : "Select an event to inspect attendee records or switch the active session"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className="text-xs font-mono text-[#A78BFA] px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                       {events.length} Total Sessions
                     </span>
-                    <button
-                      onClick={startCreate}
-                      className="h-10 px-4 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#6C63FF] to-[#8B5CF6] hover:brightness-110 text-white transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-[#6C63FF]/20 active:scale-[0.98]"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Create New Event</span>
-                    </button>
+                    {!isMediaLead && (
+                      <button
+                        onClick={startCreate}
+                        className="h-10 px-4 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#6C63FF] to-[#8B5CF6] hover:brightness-110 text-white transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-[#6C63FF]/20 active:scale-[0.98]"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Create New Event</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2047,17 +2307,17 @@ function AdminPageContent() {
                       >
                         <div className="space-y-3">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {isActive ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                   Active
                                 </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-white/5 text-[#71717A] border border-white/5">
-                                  Session
-                                </span>
-                              )}
+                              ) : null}
+
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-white/5 text-[#A1A1AA] border border-white/5">
+                                {event.event_type || "Event"}
+                              </span>
 
                               {isViewing && (
                                 <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6C63FF]/10 px-2 py-0.5 rounded whitespace-nowrap">
@@ -2066,29 +2326,41 @@ function AdminPageContent() {
                               )}
                             </div>
 
-                            {/* Card Utility Actions (Edit & Delete) */}
-                            <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEdit(event);
-                                }}
-                                title="Edit Event Details"
-                                className="h-7 w-7 rounded-lg flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteEvent(event);
-                                }}
-                                title="Delete Event"
-                                className="h-7 w-7 rounded-lg flex items-center justify-center text-[#71717A] hover:text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                            {/* Card Utility Actions (Edit & Delete for Tech Lead; Media Trigger) */}
+                            {!isMediaLead && (
+                              <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openMediaModal(event);
+                                  }}
+                                  title="Upload Media (Poster & Photos)"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#71717A] hover:text-[#A78BFA] hover:bg-[#6C63FF]/10 transition-colors cursor-pointer"
+                                >
+                                  <Camera className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startEdit(event);
+                                  }}
+                                  title="Edit Event Details"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteEvent(event);
+                                  }}
+                                  title="Delete Event"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#71717A] hover:text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -2129,7 +2401,15 @@ function AdminPageContent() {
 
                         {/* Card Actions Footer */}
                         <div className="pt-4 mt-4 border-t border-white/[0.04]">
-                          {!isActive ? (
+                          {isMediaLead ? (
+                            <button
+                              onClick={() => openMediaModal(event)}
+                              className="w-full h-10 px-4 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#6C63FF] to-[#8B5CF6] hover:brightness-110 text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#6C63FF]/20 active:scale-[0.98]"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload Poster &amp; Photos</span>
+                            </button>
+                          ) : !isActive ? (
                             <div className="flex items-center gap-2">
                               {/* Set Active Button */}
                               <button
@@ -2176,7 +2456,7 @@ function AdminPageContent() {
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION B: PARTICIPANT DIRECTORY & CREDENTIALS ─ */}
             {/* ══════════════════════════════════════════════════ */}
-            {activeTab === "registrations" && (
+            {!isMediaLead && activeTab === "registrations" && (
               currentViewEvent ? (
                 <section
                   ref={attendeesSectionRef}
@@ -2493,7 +2773,7 @@ function AdminPageContent() {
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION C: TEAM MEMBERS MANAGEMENT ────────── */}
             {/* ══════════════════════════════════════════════════ */}
-            {activeTab === "team" && (
+            {!isMediaLead && activeTab === "team" && (
               <section className="space-y-6 pt-8 border-t border-white/[0.08]">
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2891,6 +3171,149 @@ function AdminPageContent() {
                       placeholder="e.g. Cloud Kickstart 2026: AWS Architecture"
                       className="w-full h-11 px-3.5 rounded-xl text-sm bg-[#15151C] border border-white/[0.08] text-white placeholder-[#52525B] focus:outline-none focus:border-[#6C63FF] focus:ring-1 focus:ring-[#6C63FF]/30 transition-all"
                     />
+                  </div>
+
+                  {/* Event Type / Category */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-mono uppercase tracking-wider text-[#A1A1AA] font-medium flex items-center gap-1.5">
+                        <span>Event Type</span>
+                        <span className="text-[10px] text-[#71717A] font-normal normal-case tracking-normal">
+                          (Optional)
+                        </span>
+                      </label>
+                      {formData.eventType && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, eventType: "", customEventType: "" })}
+                          className="text-[11px] text-[#71717A] hover:text-[#EF4444] font-mono transition-colors cursor-pointer"
+                        >
+                          Clear selection
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Segmented Category Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {[
+                        {
+                          type: "Workshop",
+                          icon: GraduationCap,
+                          label: "Workshop",
+                          activeBg: "bg-violet-500/15 border-violet-400 text-white shadow-lg shadow-violet-500/10 ring-1 ring-violet-400/30",
+                          activeIcon: "text-violet-300",
+                          idleIcon: "text-violet-400/60 group-hover:text-violet-300",
+                        },
+                        {
+                          type: "Hackathon",
+                          icon: Trophy,
+                          label: "Hackathon",
+                          activeBg: "bg-amber-500/15 border-amber-400 text-white shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/30",
+                          activeIcon: "text-amber-300",
+                          idleIcon: "text-amber-400/60 group-hover:text-amber-300",
+                        },
+                        {
+                          type: "Quiz",
+                          icon: HelpCircle,
+                          label: "Quiz",
+                          activeBg: "bg-sky-500/15 border-sky-400 text-white shadow-lg shadow-sky-500/10 ring-1 ring-sky-400/30",
+                          activeIcon: "text-sky-300",
+                          idleIcon: "text-sky-400/60 group-hover:text-sky-300",
+                        },
+                        {
+                          type: "Event",
+                          icon: Calendar,
+                          label: "Event",
+                          activeBg: "bg-emerald-500/15 border-emerald-400 text-white shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400/30",
+                          activeIcon: "text-emerald-300",
+                          idleIcon: "text-emerald-400/60 group-hover:text-emerald-300",
+                        },
+                        {
+                          type: "Custom",
+                          icon: PenTool,
+                          label: "Custom",
+                          activeBg: "bg-pink-500/15 border-pink-400 text-white shadow-lg shadow-pink-500/10 ring-1 ring-pink-400/30",
+                          activeIcon: "text-pink-300",
+                          idleIcon: "text-pink-400/60 group-hover:text-pink-300",
+                        },
+                      ].map((item) => {
+                        const isSelected = formData.eventType === item.type;
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.type}
+                            type="button"
+                            onClick={() => {
+                              const nextType = isSelected ? "" : item.type;
+                              setFormData({
+                                ...formData,
+                                eventType: nextType,
+                                customEventType: nextType === "Custom" ? formData.customEventType : "",
+                              });
+                            }}
+                            className={cn(
+                              "group relative flex items-center justify-center gap-2 h-11 px-3 rounded-xl border text-xs font-medium transition-all duration-200 cursor-pointer select-none",
+                              isSelected
+                                ? item.activeBg
+                                : "bg-[#14131C] border-white/[0.07] text-[#A1A1AA] hover:text-white hover:bg-[#1A1926] hover:border-white/15"
+                            )}
+                          >
+                            <Icon className={cn("w-3.5 h-3.5 transition-colors", isSelected ? item.activeIcon : item.idleIcon)} />
+                            <span className="font-semibold tracking-wide">{item.label}</span>
+                            {isSelected && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse ml-0.5" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom event type input with quick suggestions */}
+                    {formData.eventType === "Custom" && (
+                      <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-pink-400">
+                            <PenTool className="w-3.5 h-3.5" />
+                          </div>
+                          <input
+                            type="text"
+                            value={formData.customEventType}
+                            onChange={(e) => setFormData({ ...formData, customEventType: e.target.value })}
+                            placeholder="Enter custom category (e.g. Webinar, Boot Camp, Panel Discussion)…"
+                            className="w-full h-10 pl-9 pr-8 rounded-xl text-xs sm:text-sm bg-[#15151C] border border-pink-500/30 text-white placeholder-[#52525B] focus:outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-400/30 transition-all"
+                            autoFocus
+                          />
+                          {formData.customEventType && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, customEventType: "" })}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#71717A] hover:text-white cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Quick Suggestions Chips */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-mono text-[#71717A]">Suggestions:</span>
+                          {["Webinar", "Panel Discussion", "Boot Camp", "Study Sprint"].map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, customEventType: suggestion })}
+                              className={cn(
+                                "px-2 py-0.5 rounded-lg text-[10.5px] font-mono border transition-all cursor-pointer",
+                                formData.customEventType.toLowerCase() === suggestion.toLowerCase()
+                                  ? "bg-pink-500/20 border-pink-400 text-pink-300"
+                                  : "bg-white/[0.02] border-white/5 text-[#71717A] hover:text-[#D4D4D8] hover:border-white/15"
+                              )}
+                            >
+                              +{suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Description */}
@@ -3830,6 +4253,286 @@ function AdminPageContent() {
           </div>
         </div>
       )}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── MEDIA ASSETS UPLOAD MODAL (MEDIA LEAD / S3) ─── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {selectedMediaEvent && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-200"
+          data-lenis-prevent
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {/* Backdrop with blur */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+            onClick={closeMediaModal}
+          />
+
+          {/* Modal Container */}
+          <div
+            className="relative w-full max-w-2xl p-1 rounded-[2rem] bg-white/[0.05] border border-white/10 shadow-2xl overflow-hidden z-10 animate-in zoom-in-95 duration-200 my-auto"
+            data-lenis-prevent
+            onWheel={(e) => e.stopPropagation()}
+          >
+            <div className="rounded-[calc(2rem-4px)] bg-[#0F0F14] overflow-hidden flex flex-col max-h-[88vh]">
+              {/* Header */}
+              <div className="px-6 sm:px-7 py-5 border-b border-white/[0.06] flex items-center justify-between shrink-0 bg-[#121218]">
+                <div className="min-w-0 pr-4">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-white tracking-tight truncate">
+                      Event Media Studio
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#6C63FF]/20 text-[#A78BFA] border border-[#6C63FF]/30 shrink-0">
+                      {formatDate(selectedMediaEvent.event_date)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#A1A1AA] mt-1 truncate">
+                    Uploading assets for <span className="text-white font-medium">&quot;{selectedMediaEvent.name}&quot;</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeMediaModal}
+                  className="h-8 w-8 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-[#71717A] hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div
+                className="p-6 sm:p-7 space-y-6 overflow-y-auto overscroll-contain flex-1 min-h-0"
+                style={{
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(255, 255, 255, 0.2) transparent",
+                }}
+              >
+                {/* ── Section 1: Event Poster / Banner ── */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-mono uppercase tracking-wider text-[#A1A1AA] font-semibold">
+                        Event Poster / Main Banner
+                      </label>
+                      <p className="text-[11px] text-[#71717A] mt-0.5">
+                        High-resolution promotional banner (any image format — auto-converted to WebP)
+                      </p>
+                    </div>
+                    {posterPreview && (
+                      <button
+                        type="button"
+                        onClick={() => posterInputRef.current?.click()}
+                        className="text-[11px] font-mono text-[#A78BFA] hover:text-white underline cursor-pointer"
+                      >
+                        Replace Poster
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    ref={posterInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handlePosterSelect(e.target.files[0]);
+                      }
+                    }}
+                  />
+
+                  {posterPreview ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 group">
+                      <div className="aspect-video w-full max-h-56 overflow-hidden flex items-center justify-center bg-[#0A0A0E]">
+                        <img
+                          src={posterPreview}
+                          alt="Poster Preview"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="p-3 bg-[#14141B] border-t border-white/[0.06] flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <ImageIcon className="w-4 h-4 text-[#A78BFA] shrink-0" />
+                          <span className="text-white truncate font-medium">
+                            {posterFile ? posterFile.name : "Current Event Poster"}
+                          </span>
+                          {posterFile && (
+                            <span className="text-[#71717A] font-mono text-[10px] shrink-0">
+                              ({(posterFile.size / (1024 * 1024)).toFixed(2)} MB)
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (posterPreview.startsWith("blob:")) URL.revokeObjectURL(posterPreview);
+                            setPosterFile(null);
+                            setPosterPreview(null);
+                          }}
+                          className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Remove poster"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => posterInputRef.current?.click()}
+                      className="w-full py-8 px-4 rounded-2xl border-2 border-dashed border-white/10 hover:border-[#6C63FF]/50 bg-white/[0.015] hover:bg-[#6C63FF]/[0.02] flex flex-col items-center justify-center cursor-pointer transition-all group text-center"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-white/[0.04] group-hover:bg-[#6C63FF]/15 border border-white/[0.08] group-hover:border-[#6C63FF]/30 flex items-center justify-center text-[#71717A] group-hover:text-[#A78BFA] mb-3 transition-colors">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-semibold text-white group-hover:text-[#A78BFA] transition-colors">
+                        Click to select or drag event poster
+                      </p>
+                      <p className="text-[11px] text-[#71717A] mt-1">
+                        Any image format • Auto-converted to high-quality .webp
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Section 2: Event Photos / Gallery ── */}
+                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <label className="block text-xs font-mono uppercase tracking-wider text-[#A1A1AA] font-semibold">
+                          Event Photos &amp; Moments
+                        </label>
+                        {photoPreviews.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/[0.06] text-[#D4D4D8]">
+                            {photoPreviews.length} selected
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[#71717A] mt-0.5">
+                        Moments, speaker shots, and workshop photos from this session
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => photosInputRef.current?.click()}
+                      className="h-8 px-3 rounded-lg text-xs font-medium text-[#A78BFA] hover:text-white bg-[#6C63FF]/10 hover:bg-[#6C63FF]/20 border border-[#6C63FF]/25 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Photos</span>
+                    </button>
+                  </div>
+
+                  <input
+                    ref={photosInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handlePhotosSelect(e.target.files);
+                      }
+                    }}
+                  />
+
+                  {photoPreviews.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {photoPreviews.map((preview, idx) => (
+                        <div
+                          key={idx}
+                          className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-black/40 group"
+                        >
+                          <img
+                            src={preview}
+                            alt={`Photo ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(idx)}
+                              className="h-8 w-8 rounded-lg bg-red-500/80 hover:bg-red-600 text-white flex items-center justify-center transition-colors cursor-pointer shadow-lg"
+                              title="Delete photo"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add more button tile in grid */}
+                      <div
+                        onClick={() => photosInputRef.current?.click()}
+                        className="aspect-video rounded-xl border border-dashed border-white/10 hover:border-[#6C63FF]/50 bg-white/[0.02] hover:bg-[#6C63FF]/[0.03] flex flex-col items-center justify-center cursor-pointer transition-colors text-center p-2 group"
+                      >
+                        <Plus className="w-5 h-5 text-[#71717A] group-hover:text-[#A78BFA] transition-colors" />
+                        <span className="text-[11px] text-[#71717A] group-hover:text-white mt-1">
+                          Add More
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => photosInputRef.current?.click()}
+                      className="w-full py-8 px-4 rounded-2xl border-2 border-dashed border-white/10 hover:border-[#6C63FF]/50 bg-white/[0.015] hover:bg-[#6C63FF]/[0.02] flex flex-col items-center justify-center cursor-pointer transition-all group text-center"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-white/[0.04] group-hover:bg-[#6C63FF]/15 border border-white/[0.08] group-hover:border-[#6C63FF]/30 flex items-center justify-center text-[#71717A] group-hover:text-[#A78BFA] mb-3 transition-colors">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-semibold text-white group-hover:text-[#A78BFA] transition-colors">
+                        Click to select session gallery photos
+                      </p>
+                      <p className="text-[11px] text-[#71717A] mt-1">
+                        Any image format • Auto-converted to high-quality .webp
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* S3 Notice for Media Lead / Lead */}
+                <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    Uploaded assets are automatically converted to high-quality WebP format for optimal site performance, ready for AWS S3 sync.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 sm:px-7 py-4 border-t border-white/[0.06] bg-[#121218] flex items-center justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={closeMediaModal}
+                  disabled={uploadingMedia}
+                  className="h-10 px-4 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMedia}
+                  disabled={uploadingMedia || (!posterFile && photoFiles.length === 0)}
+                  className="h-10 px-5 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#6C63FF] to-[#8B5CF6] hover:brightness-110 text-white transition-all cursor-pointer disabled:opacity-40 shadow-lg shadow-[#6C63FF]/20 flex items-center gap-2"
+                >
+                  {uploadingMedia ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Uploading to S3…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Save &amp; Upload Media</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════ */}
       {/* ── CUSTOM CONFIRMATION DIALOG MODAL ────────────── */}
       {/* ══════════════════════════════════════════════════ */}

@@ -88,3 +88,22 @@ test("captions: trimmed, collapsed, nullable, length and control-character limit
   assert.equal(validateCaption("bad\u0000char").ok, false);
   assert.equal(validateCaption(5).ok, false);
 });
+
+import { validateCompleteRequest } from "../../lib/media/validate.ts";
+
+test("complete request: accepts uuids, lowercases and de-duplicates", () => {
+  const a = "ABCDEFAB-ABCD-4BCD-8BCD-ABCDEFABCDEF";
+  const r = validateCompleteRequest({ mediaIds: [a, a.toLowerCase()] });
+  assert.ok(r.ok);
+  if (r.ok) assert.deepEqual(r.value, [a.toLowerCase()]);
+});
+
+test("complete request: rejects bad shapes, bad ids, and too many ids", () => {
+  assert.equal(validateCompleteRequest(null).ok, false);
+  assert.equal(validateCompleteRequest({}).ok, false);
+  assert.equal(validateCompleteRequest({ mediaIds: [] }).ok, false);
+  assert.equal(validateCompleteRequest({ mediaIds: ["nope"] }).ok, false);
+  assert.equal(validateCompleteRequest({ mediaIds: [123] }).ok, false);
+  const many = Array.from({ length: 21 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+  assert.equal(validateCompleteRequest({ mediaIds: many }).ok, false);
+});

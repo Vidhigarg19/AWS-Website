@@ -66,6 +66,8 @@ Amplify → **Hosting → Environment variables** (names starting with `AWS_` ar
 
 Then redeploy the app. Mirror the same three in `.env.local` for local work.
 
+**Why this works:** Amplify makes console variables available at *build* time only. `amplify.yml` copies the ones the server needs into `.env.production` during the build. It lists variable name prefixes, and `S3_` and `MEDIA_CDN_URL` are in that list. If you rename a variable, update the `grep` line in `amplify.yml` too, or the running site will not see it.
+
 ## 4. Verify (do not skip)
 
 Upload two small test objects with your own admin credentials, then test through the CDN:

@@ -108,3 +108,25 @@ export function validateCaption(input: unknown): Validation<string | null> {
   }
   return { ok: true, value: clean };
 }
+
+/** POST /api/media/uploads/complete body: { mediaIds: string[] }. */
+export function validateCompleteRequest(body: unknown): Validation<string[]> {
+  if (typeof body !== "object" || body === null) {
+    return { ok: false, error: "Invalid request body." };
+  }
+  const { mediaIds } = body as Record<string, unknown>;
+  if (!Array.isArray(mediaIds) || mediaIds.length === 0) {
+    return { ok: false, error: "No uploads to complete." };
+  }
+  if (mediaIds.length > MAX_FILES_PER_REQUEST) {
+    return { ok: false, error: `You can complete at most ${MAX_FILES_PER_REQUEST} uploads at a time.` };
+  }
+  const seen = new Set<string>();
+  for (const id of mediaIds) {
+    if (typeof id !== "string" || !isUuid(id)) {
+      return { ok: false, error: "Invalid upload id." };
+    }
+    seen.add(id.toLowerCase());
+  }
+  return { ok: true, value: [...seen] };
+}

@@ -47,6 +47,10 @@ export const MAX_FILES_PER_REQUEST = 20;
 export const MAX_CAPTION_LENGTH = 280;
 /** How long a presigned upload permission stays valid. */
 export const PRESIGN_TTL_SECONDS = 600;
+/** Max not-yet-completed uploads one user may hold (limits orphaned files). */
+export const MAX_PENDING_PER_USER = 100;
+/** How many leading bytes of an uploaded file we read to check its real type. */
+export const SNIFF_BYTES = 32;
 
 export type MediaPurpose = "cover" | "gallery";
 export const MEDIA_PURPOSES: readonly MediaPurpose[] = ["cover", "gallery"];

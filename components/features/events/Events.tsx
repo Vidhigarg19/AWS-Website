@@ -12,6 +12,8 @@ import {
   Layers,
   Award,
   Zap,
+  Camera,
+  ArrowRight,
 } from "lucide-react";
 import { SquareArrowOutUpRight } from "@/components/ui/animate-ui/icons/square-arrow-out-up-right";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
@@ -278,18 +280,19 @@ function EventCard({ event, className }: { event: Event; className?: string }) {
               </span>
             </div>
           ) : (
-            /* Concluded Event: Verify credentials */
+            /* Concluded Event: View the Moments in Gallery */
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-mono text-muted flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/70" />
                 Session Concluded
               </span>
               <Link
-                href="/verify"
-                className="inline-flex items-center gap-1.5 text-xs text-primary-light hover:text-white transition-colors font-medium cursor-pointer"
+                href="/gallery"
+                className="group/btn inline-flex items-center gap-1.5 text-xs text-primary-light hover:text-white transition-colors font-medium cursor-pointer"
               >
-                <span>Verify Credential</span>
-                <ExternalLink className="w-3 h-3" />
+                <Camera className="w-3.5 h-3.5 text-primary-light/80 group-hover/btn:text-white transition-colors" />
+                <span>View the Moments</span>
+                <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
               </Link>
             </div>
           )}

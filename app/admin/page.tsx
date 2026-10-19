@@ -22,6 +22,7 @@ import {
   Edit3,
   ExternalLink,
   Search,
+  Award,
   Download,
   Send,
   Copy,
@@ -2673,9 +2674,11 @@ function AdminPageContent() {
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION B: PARTICIPANT DIRECTORY & CREDENTIALS ─ */}
             {/* ══════════════════════════════════════════════════ */}
-                        {inspectingEventId && currentViewEvent && (
-              <section
-                ref={attendeesSectionRef}
+            {!isMediaLead && activeTab === "registrations" && (
+              currentViewEvent ? (
+                <>
+                  <section
+                    ref={attendeesSectionRef}
                 className="space-y-5 pt-8 border-t border-white/[0.08] scroll-mt-24"
               >
                 {/* Header with Title & Event Context Selector */}
@@ -2964,30 +2967,10 @@ function AdminPageContent() {
                 </div>
               </div>
             </section>
-              ) : (
-                <div className="p-12 text-center rounded-[2rem] bg-white/[0.02] border border-white/10 space-y-4">
-                  <div className="w-12 h-12 mx-auto rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#71717A]">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-base font-semibold text-white">No Events Available</h3>
-                    <p className="text-xs text-[#71717A] max-w-sm mx-auto">
-                      Create an event first in the Events tab to view attendee registrations.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab("events")}
-                    className="h-9 px-4 rounded-xl text-xs font-semibold bg-[#6C63FF] hover:brightness-110 text-white transition-all cursor-pointer inline-flex items-center gap-2"
-                  >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Go to Events Catalog</span>
-                  </button>
-                </div>
-              )
-            )}
 
             {/* ══════════════════════════════════════════════════ */}
-{inspectingEventId && currentViewEvent && (
+            {/* ── TOP PERFORMERS ──────────────────────────────── */}
+            {/* ══════════════════════════════════════════════════ */}
             <section className="space-y-5 pt-8 border-t border-white/[0.08]">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
@@ -3216,7 +3199,28 @@ function AdminPageContent() {
                 </>
               )}
             </section>
-          )}
+                </>
+              ) : (
+                <div className="p-12 text-center rounded-[2rem] bg-white/[0.02] border border-white/10 space-y-4">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#71717A]">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-semibold text-white">No Events Available</h3>
+                    <p className="text-xs text-[#71717A] max-w-sm mx-auto">
+                      Create an event first in the Events tab to view attendee registrations.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("events")}
+                    className="h-9 px-4 rounded-xl text-xs font-semibold bg-[#6C63FF] hover:brightness-110 text-white transition-all cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Go to Events Catalog</span>
+                  </button>
+                </div>
+              )
+            )}
 
             {/* ── SECTION C: TEAM MEMBERS MANAGEMENT ────────── */}
             {/* ══════════════════════════════════════════════════ */}

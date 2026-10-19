@@ -60,7 +60,8 @@ CREATE TABLE public.events (
     event_date      DATE,                -- nullable when session is "To be announced"
     event_timing    TEXT,                -- display-oriented, nullable when date/timing TBA
     speaker_name    TEXT,
-    attendance_open BOOLEAN NOT NULL DEFAULT false
+    attendance_open BOOLEAN NOT NULL DEFAULT false,
+    event_type      TEXT DEFAULT 'Workshop'
 );
 
 COMMENT ON TABLE public.events IS 'SBG events/workshops/hackathons. attendance_open controls whether students can submit attendance.';

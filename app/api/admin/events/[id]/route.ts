@@ -100,21 +100,43 @@ export async function PUT(
   let updatedEvent: DbEvent | null = null;
 
   if (Object.keys(updatePayload).length > 0) {
-    const { data, error: updateError } = await supabase
+    let { data, error: updateError } = await supabase
       .from("events")
       .update(updatePayload)
       .eq("id", id)
       .select("*")
       .single();
 
+    // If update failed because 'event_type' column does not exist yet in database schema cache
+    if (updateError && (updateError.code === "PGRST204" || updateError.message?.includes("event_type"))) {
+      const fallbackPayload = { ...updatePayload };
+      delete fallbackPayload.event_type;
+
+      if (Object.keys(fallbackPayload).length > 0) {
+        const retry = await supabase
+          .from("events")
+          .update(fallbackPayload)
+          .eq("id", id)
+          .select("*")
+          .single();
+        data = retry.data;
+        updateError = retry.error;
+      } else {
+        updateError = null;
+      }
+    }
+
     if (updateError) {
       console.error("[API/admin/events/[id]] Update error:", updateError);
       return NextResponse.json(
-        { success: false, error: "Failed to update event." } satisfies ApiResponse,
+        { success: false, error: updateError.message || "Failed to update event." } satisfies ApiResponse,
         { status: 500 }
       );
     }
     updatedEvent = data;
+    if (updatedEvent && body.eventType) {
+      updatedEvent.event_type = body.eventType;
+    }
   }
 
   // ── Optionally set as active event ────────────────────────

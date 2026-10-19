@@ -81,26 +81,44 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Insert event ──────────────────────────────────────────
-  const { data: newEvent, error: insertError } = await supabase
+  const insertPayload: Record<string, unknown> = {
+    name: body.name.trim(),
+    description: body.description?.trim() || null,
+    event_date: isTBA ? null : (body.eventDate?.trim() || null),
+    event_timing: isTBA ? null : (body.eventTiming?.trim() || null),
+    speaker_name: body.speakerName?.trim() || null,
+    attendance_open: body.attendanceOpen ?? false,
+    event_type: body.eventType?.trim() || null,
+  };
+
+  let { data: newEvent, error: insertError } = await supabase
     .from("events")
-    .insert({
-      name: body.name.trim(),
-      description: body.description?.trim() || null,
-      event_date: isTBA ? null : (body.eventDate?.trim() || null),
-      event_timing: isTBA ? null : (body.eventTiming?.trim() || null),
-      speaker_name: body.speakerName?.trim() || null,
-      attendance_open: body.attendanceOpen ?? false,
-      event_type: body.eventType?.trim() || null,
-    })
+    .insert(insertPayload)
     .select("*")
     .single();
+
+  // If insert failed because 'event_type' column does not exist yet in database schema cache
+  if (insertError && (insertError.code === "PGRST204" || insertError.message?.includes("event_type"))) {
+    delete insertPayload.event_type;
+    const retry = await supabase
+      .from("events")
+      .insert(insertPayload)
+      .select("*")
+      .single();
+    newEvent = retry.data;
+    insertError = retry.error;
+  }
 
   if (insertError) {
     console.error("[API/admin/events] Insert error:", insertError);
     return NextResponse.json(
-      { success: false, error: "Failed to create event." } satisfies ApiResponse,
+      { success: false, error: insertError.message || "Failed to create event." } satisfies ApiResponse,
       { status: 500 }
     );
+  }
+
+  if (newEvent && body.eventType) {
+    (newEvent as any).event_type = body.eventType;
   }
 
   // ── Optionally set as active event ────────────────────────

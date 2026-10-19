@@ -98,10 +98,20 @@ export async function GET(): Promise<NextResponse<ApiResponse<DbEvent[]>>> {
   }
 
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("events")
       .select("id, name, description, event_date, event_timing, speaker_name, attendance_open, event_type")
       .order("event_date", { ascending: true });
+
+    // Fallback if column event_type is not yet added to the events table
+    if (error && (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("event_type"))) {
+      const fallback = await supabase
+        .from("events")
+        .select("id, name, description, event_date, event_timing, speaker_name, attendance_open")
+        .order("event_date", { ascending: true });
+      data = fallback.data as any;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error("[API/events] Database query error:", error);

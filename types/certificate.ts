@@ -144,6 +144,7 @@ export interface CertificateVerificationResponse {
     eventDate: string;
     issueDate: string;
     issuedBy: string;
+    awardTitle?: string;
   };
   error?: string;
   verifiedAt: string;

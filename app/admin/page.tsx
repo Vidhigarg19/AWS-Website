@@ -97,6 +97,17 @@ function getInitials(name: string): string {
     .toUpperCase() || "ST";
 }
 
+interface TopPerformerRow {
+  id: string;
+  participantId: string;
+  rank: number;
+  fullName: string;
+  email: string;
+  course: string;
+  rollNo: string;
+  certificateId: string | null;
+}
+
 // ── Main Admin Page ───────────────────────────────────────────
 function AdminPageContent() {
   const router = useRouter();
@@ -235,6 +246,26 @@ function AdminPageContent() {
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("ALL");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deletingParticipantKey, setDeletingParticipantKey] = useState<string | null>(null);
+  const [topPerformers, setTopPerformers] = useState<TopPerformerRow[]>([]);
+  const [topPerformersEvent, setTopPerformersEvent] = useState<{
+    id: string;
+    name: string;
+    eventDate: string | null;
+  } | null>(null);
+  const [loadingTopPerformers, setLoadingTopPerformers] = useState(false);
+  const [topPerformersError, setTopPerformersError] = useState("");
+  const [addingTopPerformer, setAddingTopPerformer] = useState(false);
+  const [deletingTopPerformerId, setDeletingTopPerformerId] = useState<string | null>(null);
+  const [issuingTopPerformerId, setIssuingTopPerformerId] = useState<string | null>(null);
+  const [issuingAllTopPerformers, setIssuingAllTopPerformers] = useState(false);
+  const [sendingTopPerformerId, setSendingTopPerformerId] = useState<string | null>(null);
+  const [topPerformerForm, setTopPerformerForm] = useState({
+    rank: "1",
+    fullName: "",
+    email: "",
+    rollNo: "",
+    course: "",
+  });
 
   // Section C — Team Members state
   const [teamMembers, setTeamMembers] = useState<DbTeamMember[]>([]);
@@ -410,11 +441,42 @@ function AdminPageContent() {
     }
   }, []);
 
+  const fetchTopPerformers = useCallback(async () => {
+    setLoadingTopPerformers(true);
+    setTopPerformersError("");
+    try {
+      const res = await fetch("/api/admin/top-performers", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Could not load top performers.");
+      }
+      setTopPerformersEvent(json.data?.event || null);
+      setTopPerformers(json.data?.topPerformers || []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not load top performers.";
+      setTopPerformersError(message);
+      setTopPerformers([]);
+      setTopPerformersEvent(null);
+    } finally {
+      setLoadingTopPerformers(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isMediaLead && selectedEventId) {
       fetchParticipants(selectedEventId);
     }
-  }, [selectedEventId, fetchParticipants, isMediaLead]);
+  }, [selectedEventId, fetchParticipants]);
+
+  useEffect(() => {
+    if (portalConfig?.active_event_id) {
+      void fetchTopPerformers();
+    } else {
+      setTopPerformersEvent(null);
+      setTopPerformers([]);
+      setTopPerformersError("");
+    }
+  }, [portalConfig?.active_event_id, fetchTopPerformers]);
 
   // ── Auth ──────────────────────────────────────────────────
   const handleLogout = async () => {
@@ -696,6 +758,160 @@ function AdminPageContent() {
         }
       },
     });
+  };
+
+  const handleAddTopPerformer = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAddingTopPerformer(true);
+    try {
+      const res = await fetch("/api/admin/top-performers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rank: Number(topPerformerForm.rank),
+          fullName: topPerformerForm.fullName,
+          email: topPerformerForm.email,
+          rollNo: topPerformerForm.rollNo,
+          course: topPerformerForm.course,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Could not add this top performer.");
+      }
+
+      toast.success(json.message || "Top performer added.");
+      setTopPerformerForm((current) => ({
+        ...current,
+        fullName: "",
+        email: "",
+        rollNo: "",
+        course: "",
+      }));
+      await fetchTopPerformers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add this top performer.");
+    } finally {
+      setAddingTopPerformer(false);
+    }
+  };
+
+  const handleRemoveTopPerformer = (topPerformer: TopPerformerRow) => {
+    const isIssued = !!topPerformer.certificateId;
+    showConfirm({
+      title: isIssued ? "Delete Top Performer & Certificate" : "Delete Top Performer",
+      message: isIssued
+        ? `Delete "${topPerformer.fullName}" from top performers? Their issued Certificate of Excellence will also be deleted.`
+        : `Delete "${topPerformer.fullName}" from the active event's top performers?`,
+      confirmLabel: isIssued ? "Delete Top Performer & Certificate" : "Delete Top Performer",
+      variant: "danger",
+      onConfirm: async () => {
+        setDeletingTopPerformerId(topPerformer.id);
+        try {
+          const res = await fetch(`/api/admin/top-performers/${topPerformer.id}`, {
+            method: "DELETE",
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || "Could not delete this top performer.");
+          }
+
+          toast.success(json.message || "Top performer deleted.");
+          await fetchTopPerformers();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not delete this top performer.");
+        } finally {
+          setDeletingTopPerformerId(null);
+        }
+      },
+    });
+  };
+
+  const issueTopPerformerCertificate = async (topPerformer: TopPerformerRow) => {
+    const res = await fetch(`/api/admin/top-performers/${topPerformer.id}/issue`, {
+      method: "POST",
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || "Could not issue this certificate.");
+    }
+    return json.data as { certificateId: string };
+  };
+
+  const handleIssueTopPerformer = async (topPerformer: TopPerformerRow) => {
+    setIssuingTopPerformerId(topPerformer.id);
+    try {
+      const data = await issueTopPerformerCertificate(topPerformer);
+      toast.success(`Certificate issued: ${data.certificateId}`);
+      await fetchTopPerformers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not issue this certificate.");
+    } finally {
+      setIssuingTopPerformerId(null);
+    }
+  };
+
+  const handleIssueAllPendingTopPerformers = async () => {
+    const pending = topPerformers.filter((performer) => !performer.certificateId);
+    if (pending.length === 0) {
+      toast.info("There are no pending top performer certificates to issue.");
+      return;
+    }
+
+    setIssuingAllTopPerformers(true);
+    let issuedCount = 0;
+    const failures: string[] = [];
+    try {
+      for (const performer of pending) {
+        setIssuingTopPerformerId(performer.id);
+        try {
+          await issueTopPerformerCertificate(performer);
+          issuedCount++;
+        } catch (err) {
+          failures.push(
+            `${performer.fullName}: ${err instanceof Error ? err.message : "Unknown error"}`
+          );
+        }
+      }
+
+      await fetchTopPerformers();
+      if (failures.length === 0) {
+        toast.success(`Issued ${issuedCount} certificate${issuedCount === 1 ? "" : "s"}.`);
+      } else {
+        toast.error(
+          `Issued ${issuedCount} of ${pending.length} certificates; ${failures.length} failed.`,
+          {
+            description: failures.join("\n"),
+            duration: 12000,
+          }
+        );
+      }
+    } finally {
+      setIssuingTopPerformerId(null);
+      setIssuingAllTopPerformers(false);
+    }
+  };
+
+  const handleSendTopPerformerEmail = async (topPerformer: TopPerformerRow) => {
+    if (!topPerformer.certificateId) return;
+
+    setSendingTopPerformerId(topPerformer.id);
+    try {
+      const res = await fetch("/api/admin/certificates/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ certificateId: topPerformer.certificateId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || `Could not send the certificate to ${topPerformer.email}.`);
+      }
+      toast.success(`Certificate sent to ${topPerformer.email}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Could not send the certificate to ${topPerformer.email}.`);
+    } finally {
+      setSendingTopPerformerId(null);
+    }
   };
 
   // ── Copy to Clipboard Helper ──────────────────────────────
@@ -1396,9 +1612,9 @@ function AdminPageContent() {
   };
 
   const activeEvent = events.find((e) => e.id === portalConfig?.active_event_id);
-  const currentViewEvent =
-    events.find((e) => e.id === selectedEventId) ||
-    (events.length > 0 ? events[0] : undefined);
+  const currentViewEvent = events.find((e) => e.id === selectedEventId);
+  const canManageTopPerformers =
+    currentViewEvent?.id === portalConfig?.active_event_id;
 
   // Available course filters
   const courseOptions = useMemo(() => {
@@ -2229,6 +2445,7 @@ function AdminPageContent() {
                         />
                       </button>
                     </div>
+
                   </div>
                 </div>
               ) : (
@@ -2456,12 +2673,11 @@ function AdminPageContent() {
             {/* ══════════════════════════════════════════════════ */}
             {/* ── SECTION B: PARTICIPANT DIRECTORY & CREDENTIALS ─ */}
             {/* ══════════════════════════════════════════════════ */}
-            {!isMediaLead && activeTab === "registrations" && (
-              currentViewEvent ? (
-                <section
-                  ref={attendeesSectionRef}
-                  className="space-y-5 pt-8 border-t border-white/[0.08] scroll-mt-24"
-                >
+                        {inspectingEventId && currentViewEvent && (
+              <section
+                ref={attendeesSectionRef}
+                className="space-y-5 pt-8 border-t border-white/[0.08] scroll-mt-24"
+              >
                 {/* Header with Title & Event Context Selector */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div>
@@ -2771,6 +2987,237 @@ function AdminPageContent() {
             )}
 
             {/* ══════════════════════════════════════════════════ */}
+{inspectingEventId && currentViewEvent && (
+            <section className="space-y-5 pt-8 border-t border-white/[0.08]">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-mono uppercase tracking-wider text-amber-400 mb-2">
+                    <Award className="w-3 h-3" />
+                    <span>Manual Recognition</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                    Top Performers
+                  </h2>
+                  <p className="text-xs text-[#71717A] mt-1">
+                    {canManageTopPerformers
+                      ? "Manage excellence awards for this event."
+                      : "Top Performers can only be managed for the active event. Set this event as active to manage its awards."}
+                  </p>
+                </div>
+                {canManageTopPerformers && (
+                  <button
+                    type="button"
+                    onClick={handleIssueAllPendingTopPerformers}
+                    disabled={
+                      loadingTopPerformers ||
+                      topPerformersEvent?.id !== currentViewEvent.id ||
+                      issuingAllTopPerformers ||
+                      issuingTopPerformerId !== null ||
+                      topPerformers.filter((performer) => !performer.certificateId).length === 0
+                    }
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {issuingAllTopPerformers ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Award className="h-3.5 w-3.5" />}
+                    {issuingAllTopPerformers ? "Issuing Pending…" : "Issue All Pending"}
+                  </button>
+                )}
+              </div>
+
+              {canManageTopPerformers && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-4 py-3">
+                      <span className="block text-[10px] font-mono uppercase tracking-wider text-[#71717A] mb-1">Event</span>
+                      <span className="text-sm font-medium text-white">{currentViewEvent.name}</span>
+                    </div>
+                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-4 py-3">
+                      <span className="block text-[10px] font-mono uppercase tracking-wider text-[#71717A] mb-1">Event Date</span>
+                      <span className="text-sm font-medium text-white">{formatDate(currentViewEvent.event_date)}</span>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleAddTopPerformer} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+                    <label className="space-y-1.5">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A1AA]">Rank</span>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                        value={topPerformerForm.rank}
+                        onChange={(e) => setTopPerformerForm((current) => ({ ...current, rank: e.target.value }))}
+                        className="h-10 w-full rounded-xl bg-[#111117] border border-white/[0.1] px-3 text-sm text-white focus:outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A1AA]">Name</span>
+                      <input
+                        type="text"
+                        required
+                        minLength={2}
+                        maxLength={100}
+                        value={topPerformerForm.fullName}
+                        onChange={(e) => setTopPerformerForm((current) => ({ ...current, fullName: e.target.value }))}
+                        placeholder="Full name"
+                        className="h-10 w-full rounded-xl bg-[#111117] border border-white/[0.1] px-3 text-sm text-white placeholder:text-[#52525B] focus:outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A1AA]">Email</span>
+                      <input
+                        type="email"
+                        required
+                        maxLength={254}
+                        value={topPerformerForm.email}
+                        onChange={(e) => setTopPerformerForm((current) => ({ ...current, email: e.target.value }))}
+                        placeholder="name@example.com"
+                        className="h-10 w-full rounded-xl bg-[#111117] border border-white/[0.1] px-3 text-sm text-white placeholder:text-[#52525B] focus:outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A1AA]">Roll No.</span>
+                      <input
+                        type="text"
+                        required
+                        value={topPerformerForm.rollNo}
+                        onChange={(e) => setTopPerformerForm((current) => ({ ...current, rollNo: e.target.value }))}
+                        placeholder="Roll number"
+                        className="h-10 w-full rounded-xl bg-[#111117] border border-white/[0.1] px-3 text-sm text-white placeholder:text-[#52525B] focus:outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A1AA]">Course</span>
+                      <input
+                        type="text"
+                        required
+                        value={topPerformerForm.course}
+                        onChange={(e) => setTopPerformerForm((current) => ({ ...current, course: e.target.value }))}
+                        placeholder="Course"
+                        className="h-10 w-full rounded-xl bg-[#111117] border border-white/[0.1] px-3 text-sm text-white placeholder:text-[#52525B] focus:outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="submit"
+                        disabled={addingTopPerformer || !topPerformersEvent || topPerformersEvent.id !== currentViewEvent.id}
+                        className="h-10 w-full px-4 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                      >
+                        {addingTopPerformer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                        Add Top Performer
+                      </button>
+                    </div>
+                  </form>
+
+                  {topPerformersError && (
+                    <p role="alert" className="text-xs text-red-400">{topPerformersError}</p>
+                  )}
+
+                  <div className="overflow-x-auto rounded-xl border border-white/[0.07]">
+                    <table className="w-full min-w-[900px] text-left text-xs">
+                      <thead className="bg-white/[0.03] text-[10px] font-mono uppercase tracking-wider text-[#71717A]">
+                        <tr>
+                          <th className="px-4 py-3">Rank</th>
+                          <th className="px-4 py-3">Participant</th>
+                          <th className="px-4 py-3">Email</th>
+                          <th className="px-4 py-3">Course</th>
+                          <th className="px-4 py-3">Certificate Status</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.05]">
+                        {loadingTopPerformers ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-[#71717A]">
+                              <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading top performers…</span>
+                            </td>
+                          </tr>
+                        ) : topPerformersEvent?.id !== currentViewEvent.id ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-[#71717A]">
+                              {topPerformersError ? "Top performers are unavailable." : "Loading event details…"}
+                            </td>
+                          </tr>
+                        ) : topPerformers.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-[#71717A]">
+                              No top performers added for this event yet.
+                            </td>
+                          </tr>
+                        ) : topPerformers.map((performer) => (
+                          <tr key={performer.id} className="text-[#D4D4D8] hover:bg-white/[0.02]">
+                            <td className="px-4 py-3 font-mono font-semibold text-amber-400">{performer.rank}</td>
+                            <td className="px-4 py-3">
+                              <span className="block font-semibold text-white">{performer.fullName}</span>
+                              <span className="text-[10px] text-[#71717A]">Roll: {performer.rollNo}</span>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-[11px]">{performer.email}</td>
+                            <td className="px-4 py-3">{performer.course}</td>
+                            <td className="px-4 py-3">
+                              {performer.certificateId ? (
+                                <div>
+                                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Issued</span>
+                                  <div className="mt-1 flex items-center gap-1.5">
+                                    <Link href={`/verify/${performer.certificateId}`} target="_blank" className="font-mono text-[11px] text-[#A78BFA] hover:underline">
+                                      {performer.certificateId}
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopy(performer.certificateId!, `top-performer-cert-${performer.id}`, "Certificate ID")}
+                                      title="Copy Certificate ID"
+                                      className="text-[#71717A] hover:text-white"
+                                    >
+                                      {copiedKey === `top-performer-cert-${performer.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-[#A1A1AA]">Not issued</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {performer.certificateId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendTopPerformerEmail(performer)}
+                                    disabled={sendingTopPerformerId === performer.id || deletingTopPerformerId === performer.id}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#6C63FF]/25 bg-[#6C63FF]/10 px-2.5 text-[11px] font-medium text-[#C4B5FD] hover:bg-[#6C63FF]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {sendingTopPerformerId === performer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                                    Send Email
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleIssueTopPerformer(performer)}
+                                    disabled={issuingTopPerformerId !== null || issuingAllTopPerformers || deletingTopPerformerId === performer.id}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 text-[11px] font-medium text-amber-300 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {issuingTopPerformerId === performer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Award className="h-3 w-3" />}
+                                    Issue Certificate of Excellence
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTopPerformer(performer)}
+                                  disabled={deletingTopPerformerId === performer.id || issuingAllTopPerformers || issuingTopPerformerId !== null || sendingTopPerformerId === performer.id}
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-2.5 text-[11px] font-medium text-red-300 hover:bg-red-500/15 disabled:opacity-50"
+                                >
+                                  {deletingTopPerformerId === performer.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                  
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
             {/* ── SECTION C: TEAM MEMBERS MANAGEMENT ────────── */}
             {/* ══════════════════════════════════════════════════ */}
             {!isMediaLead && activeTab === "team" && (

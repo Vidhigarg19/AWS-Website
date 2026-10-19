@@ -8,11 +8,13 @@ interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement> {
   spotlightColor?: string;
   borderColor?: string;
   radius?: number;
+  contentClassName?: string;
 }
 
 export const SpotlightCard = ({
   children,
   className,
+  contentClassName,
   spotlightColor = "rgba(167, 139, 250, 0.025)",
   borderColor = "rgba(192, 132, 252, 0.08)",
   radius = 200,
@@ -67,7 +69,7 @@ export const SpotlightCard = ({
         }}
       />
 
-      <div className="relative z-10">{children}</div>
+      <div className={cn("relative z-10 h-full flex flex-col", contentClassName)}>{children}</div>
     </div>
   );
 };

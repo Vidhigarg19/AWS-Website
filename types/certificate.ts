@@ -29,6 +29,7 @@ export interface DbEvent {
   attendance_open: boolean;
   poster_url?: string | null;
   photos?: string[] | null;
+  event_type?: string | null;       // Category: "Workshop" | "Hackathon" | "Quiz" | "Event" | custom
 }
 
 export interface DbAttendance {
@@ -197,6 +198,7 @@ export interface AdminEventRequest {
   speakerName?: string;
   attendanceOpen?: boolean;
   setAsActive?: boolean;       // If true, sets this event as the active portal event
+  eventType?: string | null;   // Category: "Workshop" | "Hackathon" | "Quiz" | "Event" | custom
 }
 
 /**

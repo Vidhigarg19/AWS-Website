@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       event_timing: isTBA ? null : (body.eventTiming?.trim() || null),
       speaker_name: body.speakerName?.trim() || null,
       attendance_open: body.attendanceOpen ?? false,
+      event_type: body.eventType?.trim() || null,
     })
     .select("*")
     .single();

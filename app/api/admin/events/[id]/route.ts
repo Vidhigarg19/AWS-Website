@@ -87,6 +87,7 @@ export async function PUT(
   }
   if (body.speakerName !== undefined) updatePayload.speaker_name = body.speakerName?.trim() || null;
   if (body.attendanceOpen !== undefined) updatePayload.attendance_open = body.attendanceOpen;
+  if (body.eventType !== undefined) updatePayload.event_type = body.eventType?.trim() || null;
 
   if (Object.keys(updatePayload).length === 0 && !body.setAsActive) {
     return NextResponse.json(

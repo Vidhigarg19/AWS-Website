@@ -195,6 +195,8 @@ function AdminPageContent() {
     speakerName: "",
     attendanceOpen: true,
     setAsActive: false,
+    eventType: "Workshop" as string,
+    customEventType: "",
   });
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -431,6 +433,8 @@ function AdminPageContent() {
       speakerName: "",
       attendanceOpen: true,
       setAsActive: false,
+      eventType: "Workshop",
+      customEventType: "",
     });
     setIsTBA(false);
     setEditingEvent(null);
@@ -471,6 +475,9 @@ function AdminPageContent() {
     setEditingEvent(event);
     const eventIsTBA = !event.event_date || event.event_date.toLowerCase() === "tba" || !event.event_timing;
     setIsTBA(eventIsTBA);
+    const eventTypeSaved = event.event_type || "Workshop";
+    const knownTypes = ["Workshop", "Hackathon", "Quiz", "Event"];
+    const isKnown = knownTypes.includes(eventTypeSaved);
     setFormData({
       name: event.name,
       description: event.description || "",
@@ -479,6 +486,8 @@ function AdminPageContent() {
       speakerName: event.speaker_name || "",
       attendanceOpen: event.attendance_open,
       setAsActive: portalConfig?.active_event_id === event.id,
+      eventType: isKnown ? eventTypeSaved : "Custom",
+      customEventType: isKnown ? "" : eventTypeSaved,
     });
     setFormError("");
     setShowForm(true);
@@ -514,11 +523,17 @@ function AdminPageContent() {
         : "/api/admin/events";
       const method = editingEvent ? "PUT" : "POST";
 
+      const resolvedEventType =
+        formData.eventType === "Custom"
+          ? formData.customEventType.trim() || "Event"
+          : formData.eventType;
+
       const payload = {
         ...formData,
         isTBA,
         eventDate: isTBA ? null : formData.eventDate,
         eventTiming: isTBA ? null : formData.eventTiming,
+        eventType: resolvedEventType,
       };
 
       const res = await fetch(url, {
@@ -2092,11 +2107,16 @@ function AdminPageContent() {
                     {/* Header Row */}
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                       <div className="space-y-3 max-w-2xl">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                           <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
                             Live Active Portal Event
                           </span>
+                          {activeEvent.event_type && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-mono font-medium uppercase tracking-wider bg-[#6C63FF]/20 border border-[#6C63FF]/40 text-[#A78BFA]">
+                              {activeEvent.event_type}
+                            </span>
+                          )}
                         </div>
 
                         <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
@@ -2284,17 +2304,17 @@ function AdminPageContent() {
                       >
                         <div className="space-y-3">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {isActive ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                   Active
                                 </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-white/5 text-[#71717A] border border-white/5">
-                                  Session
-                                </span>
-                              )}
+                              ) : null}
+
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-white/5 text-[#A1A1AA] border border-white/5">
+                                {event.event_type || "Event"}
+                              </span>
 
                               {isViewing && (
                                 <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6C63FF]/10 px-2 py-0.5 rounded whitespace-nowrap">
@@ -3148,6 +3168,58 @@ function AdminPageContent() {
                       placeholder="e.g. Cloud Kickstart 2026: AWS Architecture"
                       className="w-full h-11 px-3.5 rounded-xl text-sm bg-[#15151C] border border-white/[0.08] text-white placeholder-[#52525B] focus:outline-none focus:border-[#6C63FF] focus:ring-1 focus:ring-[#6C63FF]/30 transition-all"
                     />
+                  </div>
+
+                  {/* Event Type */}
+                  <div className="space-y-2.5">
+                    <label className="block text-xs font-mono uppercase tracking-wider text-[#A1A1AA] font-medium">
+                      Event Type <span className="text-[#6C63FF]">*</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {(["Workshop", "Hackathon", "Quiz", "Event", "Custom"] as const).map((type) => {
+                        const selected = formData.eventType === type;
+                        const colorMap: Record<string, string> = {
+                          Workshop: "from-violet-600/30 to-purple-600/30 border-violet-500/40 text-violet-300",
+                          Hackathon: "from-amber-600/30 to-orange-600/30 border-amber-500/40 text-amber-300",
+                          Quiz: "from-sky-600/30 to-cyan-600/30 border-sky-500/40 text-sky-300",
+                          Event: "from-emerald-600/30 to-green-600/30 border-emerald-500/40 text-emerald-300",
+                          Custom: "from-rose-600/30 to-pink-600/30 border-rose-500/40 text-rose-300",
+                        };
+                        const activeMap: Record<string, string> = {
+                          Workshop: "bg-gradient-to-r from-violet-600/60 to-purple-600/60 border-violet-400 text-white shadow-lg shadow-violet-500/20",
+                          Hackathon: "bg-gradient-to-r from-amber-600/60 to-orange-600/60 border-amber-400 text-white shadow-lg shadow-amber-500/20",
+                          Quiz: "bg-gradient-to-r from-sky-600/60 to-cyan-600/60 border-sky-400 text-white shadow-lg shadow-sky-500/20",
+                          Event: "bg-gradient-to-r from-emerald-600/60 to-green-600/60 border-emerald-400 text-white shadow-lg shadow-emerald-500/20",
+                          Custom: "bg-gradient-to-r from-rose-600/60 to-pink-600/60 border-rose-400 text-white shadow-lg shadow-rose-500/20",
+                        };
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, eventType: type, customEventType: "" })}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-xl border text-xs font-semibold tracking-wide transition-all duration-150 cursor-pointer",
+                              selected
+                                ? activeMap[type]
+                                : `bg-gradient-to-r ${colorMap[type]} hover:opacity-90`
+                            )}
+                          >
+                            {type === "Custom" ? "✏️ Custom" : type}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Custom event type text input */}
+                    {formData.eventType === "Custom" && (
+                      <input
+                        type="text"
+                        value={formData.customEventType}
+                        onChange={(e) => setFormData({ ...formData, customEventType: e.target.value })}
+                        placeholder="e.g. Panel Discussion, Webinar, Study Sprint…"
+                        className="w-full h-10 px-3.5 rounded-xl text-sm bg-[#15151C] border border-rose-500/30 text-white placeholder-[#52525B] focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400/30 transition-all"
+                        autoFocus
+                      />
+                    )}
                   </div>
 
                   {/* Description */}

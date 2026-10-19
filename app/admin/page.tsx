@@ -38,6 +38,9 @@ import {
   UserPlus,
   ImageIcon,
   GraduationCap,
+  Trophy,
+  HelpCircle,
+  PenTool,
   Briefcase,
   Upload,
   Camera,
@@ -195,7 +198,7 @@ function AdminPageContent() {
     speakerName: "",
     attendanceOpen: true,
     setAsActive: false,
-    eventType: "Workshop" as string,
+    eventType: "" as string,
     customEventType: "",
   });
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -433,7 +436,7 @@ function AdminPageContent() {
       speakerName: "",
       attendanceOpen: true,
       setAsActive: false,
-      eventType: "Workshop",
+      eventType: "",
       customEventType: "",
     });
     setIsTBA(false);
@@ -475,7 +478,7 @@ function AdminPageContent() {
     setEditingEvent(event);
     const eventIsTBA = !event.event_date || event.event_date.toLowerCase() === "tba" || !event.event_timing;
     setIsTBA(eventIsTBA);
-    const eventTypeSaved = event.event_type || "Workshop";
+    const eventTypeSaved = event.event_type || "";
     const knownTypes = ["Workshop", "Hackathon", "Quiz", "Event"];
     const isKnown = knownTypes.includes(eventTypeSaved);
     setFormData({
@@ -486,7 +489,7 @@ function AdminPageContent() {
       speakerName: event.speaker_name || "",
       attendanceOpen: event.attendance_open,
       setAsActive: portalConfig?.active_event_id === event.id,
-      eventType: isKnown ? eventTypeSaved : "Custom",
+      eventType: eventTypeSaved ? (isKnown ? eventTypeSaved : "Custom") : "",
       customEventType: isKnown ? "" : eventTypeSaved,
     });
     setFormError("");
@@ -525,8 +528,8 @@ function AdminPageContent() {
 
       const resolvedEventType =
         formData.eventType === "Custom"
-          ? formData.customEventType.trim() || "Event"
-          : formData.eventType;
+          ? formData.customEventType.trim() || null
+          : formData.eventType.trim() || null;
 
       const payload = {
         ...formData,
@@ -3170,55 +3173,146 @@ function AdminPageContent() {
                     />
                   </div>
 
-                  {/* Event Type */}
+                  {/* Event Type / Category */}
                   <div className="space-y-2.5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-[#A1A1AA] font-medium">
-                      Event Type <span className="text-[#6C63FF]">*</span>
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {(["Workshop", "Hackathon", "Quiz", "Event", "Custom"] as const).map((type) => {
-                        const selected = formData.eventType === type;
-                        const colorMap: Record<string, string> = {
-                          Workshop: "from-violet-600/30 to-purple-600/30 border-violet-500/40 text-violet-300",
-                          Hackathon: "from-amber-600/30 to-orange-600/30 border-amber-500/40 text-amber-300",
-                          Quiz: "from-sky-600/30 to-cyan-600/30 border-sky-500/40 text-sky-300",
-                          Event: "from-emerald-600/30 to-green-600/30 border-emerald-500/40 text-emerald-300",
-                          Custom: "from-rose-600/30 to-pink-600/30 border-rose-500/40 text-rose-300",
-                        };
-                        const activeMap: Record<string, string> = {
-                          Workshop: "bg-gradient-to-r from-violet-600/60 to-purple-600/60 border-violet-400 text-white shadow-lg shadow-violet-500/20",
-                          Hackathon: "bg-gradient-to-r from-amber-600/60 to-orange-600/60 border-amber-400 text-white shadow-lg shadow-amber-500/20",
-                          Quiz: "bg-gradient-to-r from-sky-600/60 to-cyan-600/60 border-sky-400 text-white shadow-lg shadow-sky-500/20",
-                          Event: "bg-gradient-to-r from-emerald-600/60 to-green-600/60 border-emerald-400 text-white shadow-lg shadow-emerald-500/20",
-                          Custom: "bg-gradient-to-r from-rose-600/60 to-pink-600/60 border-rose-400 text-white shadow-lg shadow-rose-500/20",
-                        };
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-mono uppercase tracking-wider text-[#A1A1AA] font-medium flex items-center gap-1.5">
+                        <span>Event Type</span>
+                        <span className="text-[10px] text-[#71717A] font-normal normal-case tracking-normal">
+                          (Optional)
+                        </span>
+                      </label>
+                      {formData.eventType && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, eventType: "", customEventType: "" })}
+                          className="text-[11px] text-[#71717A] hover:text-[#EF4444] font-mono transition-colors cursor-pointer"
+                        >
+                          Clear selection
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Segmented Category Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {[
+                        {
+                          type: "Workshop",
+                          icon: GraduationCap,
+                          label: "Workshop",
+                          activeBg: "bg-violet-500/15 border-violet-400 text-white shadow-lg shadow-violet-500/10 ring-1 ring-violet-400/30",
+                          activeIcon: "text-violet-300",
+                          idleIcon: "text-violet-400/60 group-hover:text-violet-300",
+                        },
+                        {
+                          type: "Hackathon",
+                          icon: Trophy,
+                          label: "Hackathon",
+                          activeBg: "bg-amber-500/15 border-amber-400 text-white shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/30",
+                          activeIcon: "text-amber-300",
+                          idleIcon: "text-amber-400/60 group-hover:text-amber-300",
+                        },
+                        {
+                          type: "Quiz",
+                          icon: HelpCircle,
+                          label: "Quiz",
+                          activeBg: "bg-sky-500/15 border-sky-400 text-white shadow-lg shadow-sky-500/10 ring-1 ring-sky-400/30",
+                          activeIcon: "text-sky-300",
+                          idleIcon: "text-sky-400/60 group-hover:text-sky-300",
+                        },
+                        {
+                          type: "Event",
+                          icon: Calendar,
+                          label: "Event",
+                          activeBg: "bg-emerald-500/15 border-emerald-400 text-white shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400/30",
+                          activeIcon: "text-emerald-300",
+                          idleIcon: "text-emerald-400/60 group-hover:text-emerald-300",
+                        },
+                        {
+                          type: "Custom",
+                          icon: PenTool,
+                          label: "Custom",
+                          activeBg: "bg-pink-500/15 border-pink-400 text-white shadow-lg shadow-pink-500/10 ring-1 ring-pink-400/30",
+                          activeIcon: "text-pink-300",
+                          idleIcon: "text-pink-400/60 group-hover:text-pink-300",
+                        },
+                      ].map((item) => {
+                        const isSelected = formData.eventType === item.type;
+                        const Icon = item.icon;
                         return (
                           <button
-                            key={type}
+                            key={item.type}
                             type="button"
-                            onClick={() => setFormData({ ...formData, eventType: type, customEventType: "" })}
+                            onClick={() => {
+                              const nextType = isSelected ? "" : item.type;
+                              setFormData({
+                                ...formData,
+                                eventType: nextType,
+                                customEventType: nextType === "Custom" ? formData.customEventType : "",
+                              });
+                            }}
                             className={cn(
-                              "px-3.5 py-1.5 rounded-xl border text-xs font-semibold tracking-wide transition-all duration-150 cursor-pointer",
-                              selected
-                                ? activeMap[type]
-                                : `bg-gradient-to-r ${colorMap[type]} hover:opacity-90`
+                              "group relative flex items-center justify-center gap-2 h-11 px-3 rounded-xl border text-xs font-medium transition-all duration-200 cursor-pointer select-none",
+                              isSelected
+                                ? item.activeBg
+                                : "bg-[#14131C] border-white/[0.07] text-[#A1A1AA] hover:text-white hover:bg-[#1A1926] hover:border-white/15"
                             )}
                           >
-                            {type === "Custom" ? "✏️ Custom" : type}
+                            <Icon className={cn("w-3.5 h-3.5 transition-colors", isSelected ? item.activeIcon : item.idleIcon)} />
+                            <span className="font-semibold tracking-wide">{item.label}</span>
+                            {isSelected && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse ml-0.5" />
+                            )}
                           </button>
                         );
                       })}
                     </div>
-                    {/* Custom event type text input */}
+
+                    {/* Custom event type input with quick suggestions */}
                     {formData.eventType === "Custom" && (
-                      <input
-                        type="text"
-                        value={formData.customEventType}
-                        onChange={(e) => setFormData({ ...formData, customEventType: e.target.value })}
-                        placeholder="e.g. Panel Discussion, Webinar, Study Sprint…"
-                        className="w-full h-10 px-3.5 rounded-xl text-sm bg-[#15151C] border border-rose-500/30 text-white placeholder-[#52525B] focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400/30 transition-all"
-                        autoFocus
-                      />
+                      <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-pink-400">
+                            <PenTool className="w-3.5 h-3.5" />
+                          </div>
+                          <input
+                            type="text"
+                            value={formData.customEventType}
+                            onChange={(e) => setFormData({ ...formData, customEventType: e.target.value })}
+                            placeholder="Enter custom category (e.g. Webinar, Boot Camp, Panel Discussion)…"
+                            className="w-full h-10 pl-9 pr-8 rounded-xl text-xs sm:text-sm bg-[#15151C] border border-pink-500/30 text-white placeholder-[#52525B] focus:outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-400/30 transition-all"
+                            autoFocus
+                          />
+                          {formData.customEventType && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, customEventType: "" })}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#71717A] hover:text-white cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Quick Suggestions Chips */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-mono text-[#71717A]">Suggestions:</span>
+                          {["Webinar", "Panel Discussion", "Boot Camp", "Study Sprint"].map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, customEventType: suggestion })}
+                              className={cn(
+                                "px-2 py-0.5 rounded-lg text-[10.5px] font-mono border transition-all cursor-pointer",
+                                formData.customEventType.toLowerCase() === suggestion.toLowerCase()
+                                  ? "bg-pink-500/20 border-pink-400 text-pink-300"
+                                  : "bg-white/[0.02] border-white/5 text-[#71717A] hover:text-[#D4D4D8] hover:border-white/15"
+                              )}
+                            >
+                              +{suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
 

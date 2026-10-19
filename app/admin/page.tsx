@@ -674,10 +674,13 @@ export default function AdminPage() {
   };
 
   const handleRemoveTopPerformer = (topPerformer: TopPerformerRow) => {
+    const isIssued = !!topPerformer.certificateId;
     showConfirm({
-      title: "Remove Top Performer",
-      message: `Remove "${topPerformer.fullName}" from the active event's top performers?`,
-      confirmLabel: "Remove Top Performer",
+      title: isIssued ? "Delete Top Performer & Certificate" : "Delete Top Performer",
+      message: isIssued
+        ? `Delete "${topPerformer.fullName}" from top performers? Their issued Certificate of Excellence will also be deleted.`
+        : `Delete "${topPerformer.fullName}" from the active event's top performers?`,
+      confirmLabel: isIssued ? "Delete Top Performer & Certificate" : "Delete Top Performer",
       variant: "danger",
       onConfirm: async () => {
         setDeletingTopPerformerId(topPerformer.id);
@@ -687,13 +690,13 @@ export default function AdminPage() {
           });
           const json = await res.json();
           if (!res.ok || !json.success) {
-            throw new Error(json.error || "Could not remove this top performer.");
+            throw new Error(json.error || "Could not delete this top performer.");
           }
 
-          toast.success(json.message || "Top performer removed.");
+          toast.success(json.message || "Top performer deleted.");
           await fetchTopPerformers();
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Could not remove this top performer.");
+          toast.error(err instanceof Error ? err.message : "Could not delete this top performer.");
         } finally {
           setDeletingTopPerformerId(null);
         }
@@ -2240,7 +2243,7 @@ export default function AdminPage() {
                           <th className="px-4 py-3">Rank</th>
                           <th className="px-4 py-3">Participant</th>
                           <th className="px-4 py-3">Email</th>
-                          <th className="px-4 py-3">Course / Roll No.</th>
+                          <th className="px-4 py-3">Course</th>
                           <th className="px-4 py-3">Certificate Status</th>
                           <th className="px-4 py-3 text-right">Actions</th>
                         </tr>
@@ -2269,10 +2272,10 @@ export default function AdminPage() {
                             <td className="px-4 py-3 font-mono font-semibold text-amber-400">{performer.rank}</td>
                             <td className="px-4 py-3">
                               <span className="block font-semibold text-white">{performer.fullName}</span>
-                              <span className="text-[10px] text-[#71717A]">{performer.rollNo}</span>
+                              <span className="text-[10px] text-[#71717A]">Roll: {performer.rollNo}</span>
                             </td>
                             <td className="px-4 py-3 font-mono text-[11px]">{performer.email}</td>
-                            <td className="px-4 py-3">{performer.course} <span className="text-[#71717A]">/ {performer.rollNo}</span></td>
+                            <td className="px-4 py-3">{performer.course}</td>
                             <td className="px-4 py-3">
                               {performer.certificateId ? (
                                 <div>
@@ -2301,7 +2304,7 @@ export default function AdminPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleSendTopPerformerEmail(performer)}
-                                    disabled={sendingTopPerformerId === performer.id}
+                                    disabled={sendingTopPerformerId === performer.id || deletingTopPerformerId === performer.id}
                                     className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#6C63FF]/25 bg-[#6C63FF]/10 px-2.5 text-[11px] font-medium text-[#C4B5FD] hover:bg-[#6C63FF]/20 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     {sendingTopPerformerId === performer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
@@ -2311,24 +2314,22 @@ export default function AdminPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleIssueTopPerformer(performer)}
-                                    disabled={issuingTopPerformerId !== null || issuingAllTopPerformers}
+                                    disabled={issuingTopPerformerId !== null || issuingAllTopPerformers || deletingTopPerformerId === performer.id}
                                     className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 text-[11px] font-medium text-amber-300 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     {issuingTopPerformerId === performer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Award className="h-3 w-3" />}
                                     Issue Certificate of Excellence
                                   </button>
                                 )}
-                                {!performer.certificateId && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveTopPerformer(performer)}
-                                    disabled={deletingTopPerformerId === performer.id || issuingAllTopPerformers || issuingTopPerformerId !== null}
-                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-2.5 text-[11px] font-medium text-red-300 hover:bg-red-500/15 disabled:opacity-50"
-                                  >
-                                    {deletingTopPerformerId === performer.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                    Remove
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTopPerformer(performer)}
+                                  disabled={deletingTopPerformerId === performer.id || issuingAllTopPerformers || issuingTopPerformerId !== null || sendingTopPerformerId === performer.id}
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-2.5 text-[11px] font-medium text-red-300 hover:bg-red-500/15 disabled:opacity-50"
+                                >
+                                  {deletingTopPerformerId === performer.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                  
+                                </button>
                               </div>
                             </td>
                           </tr>

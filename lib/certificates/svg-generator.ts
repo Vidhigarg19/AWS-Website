@@ -271,10 +271,10 @@ export async function generateCertificateSvg(
   if (input.awardTitle) {
     const line1 = "This certificate is proudly presented to";
     const line1Size = getFittingFontSize(regFont, line1, 34, 1180);
-    const line1Path = textToSvgPath(regFont, line1, cx, 1215, line1Size, "#555555");
+    const line1Path = textToSvgPath(regFont, line1, cx, 1347, line1Size, "#555555");
 
     const nameSize = getFittingFontSize(boldFont, participantName, 96, 1200);
-    const namePath = textToSvgPath(boldFont, participantName, cx, 1365, nameSize, "#161D26");
+    const namePath = textToSvgPath(boldFont, participantName, cx, 1497, nameSize, "#161D26");
 
     const securingText = "for securing";
     const securingSize = getFittingFontSize(regFont, securingText, 32, 1180);
@@ -282,14 +282,14 @@ export async function generateCertificateSvg(
       regFont,
       securingText,
       cx,
-      1430,
+      1562,
       securingSize,
       "#555555"
     );
 
     const rankSize = getFittingFontSize(boldFont, input.awardTitle, 112, 850);
     const rankWidth = boldFont.getAdvanceWidth(input.awardTitle, rankSize);
-    const rankBaseline = 1550;
+    const rankBaseline = 1682;
     const rankPath = textToSvgPath(
       boldFont,
       input.awardTitle,
@@ -309,7 +309,7 @@ export async function generateCertificateSvg(
       regFont,
       eventPrefix,
       cx,
-      1645,
+      1777,
       54,
       "#555555"
     );
@@ -318,37 +318,14 @@ export async function generateCertificateSvg(
       boldFont,
       eventTitle,
       cx,
-      1725,
+      1857,
       eventSize,
       "#FF9900"
     );
 
     const details = "conducted by AWS Student Builder Group at Tulas University";
     const detailsSize = getFittingFontSize(regFont, details, 28, 1240);
-    const detailsPath = textToSvgPath(regFont, details, cx, 1820, detailsSize, "#444444");
-
-    const datePrefix = "on ";
-    const dateLine = `${datePrefix}${eventDate}`;
-    const dateSize = getFittingFontSize(regFont, dateLine, 34, 1180);
-    const dateLineWidth = regFont.getAdvanceWidth(dateLine, dateSize);
-    const dateStartX = cx - dateLineWidth / 2;
-    const datePrefixWidth = regFont.getAdvanceWidth(datePrefix, dateSize);
-    const datePrefixPath = textToSvgPathLeft(
-      regFont,
-      datePrefix,
-      dateStartX,
-      1915,
-      dateSize,
-      "#555555"
-    );
-    const datePath = textToSvgPathLeft(
-      regFont,
-      eventDate,
-      dateStartX + datePrefixWidth,
-      1915,
-      dateSize,
-      "#161D26"
-    );
+    const detailsPath = textToSvgPath(regFont, details, cx, 1952, detailsSize, "#444444");
 
     const qrImageXml = input.qrDataUri
       ? `<image href="${input.qrDataUri}" x="220" y="2010" width="230" height="230" />`
@@ -376,7 +353,7 @@ export async function generateCertificateSvg(
       )
       .replace(
         "<!-- EVENT_DETAILS_PLACEHOLDER -->",
-        `${eventPrefixPath}${eventNamePath}${detailsPath}${datePrefixPath}${datePath}`
+        `${eventPrefixPath}${eventNamePath}${detailsPath}`
       )
       .replace("<!-- SIGNER_NAME_PLACEHOLDER -->", sigImgXml)
       .replace("<!-- SIGNER_TITLE_PLACEHOLDER -->", `${signerTitlePath}${signerOrgPath}`)

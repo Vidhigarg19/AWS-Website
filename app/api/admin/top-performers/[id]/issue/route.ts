@@ -48,7 +48,10 @@ export async function POST(
       return errorResponse("Top performer ID is required.", 400);
     }
 
-    const { data: topPerformer, error: topPerformerError } = await sessionClient
+    const admin = getAdminClient();
+    if (!admin) return errorResponse("Database client unavailable.", 500);
+
+    const { data: topPerformer, error: topPerformerError } = await admin
       .from("top_performers")
       .select("id, event_id, participant_id, rank, full_name")
       .eq("id", id.trim())
@@ -56,14 +59,11 @@ export async function POST(
 
     if (topPerformerError) {
       console.error("[API/admin/top-performers/issue] Top performer lookup failed:", topPerformerError);
-      return errorResponse("You do not have permission to issue this certificate, or the record could not be loaded.", 403);
+      return errorResponse("Failed to load top performer record.", 500);
     }
     if (!topPerformer) {
       return errorResponse("Top performer not found.", 404);
     }
-
-    const admin = getAdminClient();
-    if (!admin) return errorResponse("Database client unavailable.", 500);
 
     const { data: existingCertificate, error: existingCertificateError } = await admin
       .from("certificates")

@@ -70,7 +70,7 @@ export async function GET() {
       } satisfies ApiResponse);
     }
 
-    const { data: rows, error: rowsError } = await sessionClient
+    const { data: rows, error: rowsError } = await admin
       .from("top_performers")
       .select("id, event_id, participant_id, rank, full_name, course, roll_no")
       .eq("event_id", event.id)
@@ -78,7 +78,7 @@ export async function GET() {
 
     if (rowsError) {
       console.error("[API/admin/top-performers] Top performer lookup failed:", rowsError);
-      return errorResponse("You do not have permission to view top performers, or the list could not be loaded.", 403);
+      return errorResponse("Failed to load top performers.", 500);
     }
 
     const participantIds = [...new Set((rows || []).map((row) => row.participant_id))];
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: existingTopPerformer, error: duplicateLookupError } = await sessionClient
+    const { data: existingTopPerformer, error: duplicateLookupError } = await admin
       .from("top_performers")
       .select("id")
       .eq("event_id", event.id)
@@ -241,13 +241,13 @@ export async function POST(request: NextRequest) {
 
     if (duplicateLookupError) {
       console.error("[API/admin/top-performers] Duplicate lookup failed:", duplicateLookupError);
-      return errorResponse("You do not have permission to add top performers, or eligibility could not be checked.", 403);
+      return errorResponse("Eligibility could not be checked. Please try again.", 500);
     }
     if (existingTopPerformer) {
       return errorResponse("This email is already listed as a top performer for the active event.", 409);
     }
 
-    const { error: insertError } = await sessionClient.from("top_performers").insert({
+    const { error: insertError } = await admin.from("top_performers").insert({
       event_id: event.id,
       participant_id: participantId,
       rank: body.rank,
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
     }
     if (insertError) {
       console.error("[API/admin/top-performers] Insert failed:", insertError);
-      return errorResponse("We could not add this top performer. Please try again.", insertError.code === "42501" ? 403 : 500);
+      return errorResponse("We could not add this top performer. Please try again.", 500);
     }
 
     return NextResponse.json({

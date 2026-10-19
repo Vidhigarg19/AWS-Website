@@ -10,6 +10,7 @@ import {
   Download,
   Search,
   AlertTriangle,
+  GraduationCap,
 } from "lucide-react";
 
 interface PageProps {
@@ -157,16 +158,17 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-[#26262D]">
                   {cert.awardTitle && (
-                    <>
-                      <div className="p-4 rounded-xl bg-[#17171C] border border-[#26262D]">
-                        <div className="text-[10px] uppercase tracking-wider text-[#8B8B96] font-mono">Course</div>
-                        <div className="text-sm font-semibold text-white mt-1">{cert.course}</div>
+                    <div className="col-span-1 sm:col-span-2 p-4 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">
+                      <GraduationCap className="w-5 h-5 text-[#818CF8] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider text-[#8B8B96] font-mono">
+                          Course
+                        </div>
+                        <div className="text-sm font-semibold text-white truncate">
+                          {cert.course}
+                        </div>
                       </div>
-                      <div className="p-4 rounded-xl bg-[#17171C] border border-[#26262D]">
-                        <div className="text-[10px] uppercase tracking-wider text-[#8B8B96] font-mono">Roll No.</div>
-                        <div className="text-sm font-semibold text-white mt-1">{cert.rollNo}</div>
-                      </div>
-                    </>
+                    </div>
                   )}
                   {/* Event Name */}
                   <div className="p-4 rounded-xl bg-[#17171C] border border-[#26262D] flex items-center gap-3">

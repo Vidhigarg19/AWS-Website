@@ -57,7 +57,7 @@ export async function DELETE(
       );
     }
 
-    const { data: topPerformer, error: topPerformerError } = await sessionClient
+    const { data: topPerformer, error: topPerformerError } = await admin
       .from("top_performers")
       .select("id, event_id, participant_id")
       .eq("id", id.trim())
@@ -67,8 +67,8 @@ export async function DELETE(
     if (topPerformerError) {
       console.error("[API/admin/top-performers] Top performer lookup failed:", topPerformerError);
       return NextResponse.json(
-        { success: false, error: "You do not have permission to remove this top performer." } satisfies ApiResponse,
-        { status: 403 }
+        { success: false, error: "Failed to look up top performer." } satisfies ApiResponse,
+        { status: 500 }
       );
     }
     if (!topPerformer) {
@@ -78,30 +78,24 @@ export async function DELETE(
       );
     }
 
-    const { data: issuedCertificate, error: certificateError } = await admin
+    // If a Certificate of Excellence was issued, delete it along with the top performer
+    const { data: deletedCerts, error: certificateError } = await admin
       .from("certificates")
-      .select("id")
+      .delete()
       .eq("event_id", topPerformer.event_id)
       .eq("participant_id", topPerformer.participant_id)
       .not("award_title", "is", null)
-      .limit(1)
-      .maybeSingle();
+      .select("id");
 
     if (certificateError) {
-      console.error("[API/admin/top-performers] Certificate lookup failed:", certificateError);
+      console.error("[API/admin/top-performers] Certificate deletion failed:", certificateError);
       return NextResponse.json(
-        { success: false, error: "Could not check whether a certificate has been issued." } satisfies ApiResponse,
+        { success: false, error: "Could not remove the certificate for this top performer." } satisfies ApiResponse,
         { status: 500 }
       );
     }
-    if (issuedCertificate) {
-      return NextResponse.json(
-        { success: false, error: "This top performer cannot be removed because their certificate has already been issued." } satisfies ApiResponse,
-        { status: 409 }
-      );
-    }
 
-    const { data: deletedRow, error: deleteError } = await sessionClient
+    const { data: deletedRow, error: deleteError } = await admin
       .from("top_performers")
       .delete()
       .eq("id", topPerformer.id)
@@ -113,7 +107,7 @@ export async function DELETE(
       console.error("[API/admin/top-performers] Delete failed:", deleteError);
       return NextResponse.json(
         { success: false, error: "Could not remove this top performer." } satisfies ApiResponse,
-        { status: deleteError.code === "42501" ? 403 : 500 }
+        { status: 500 }
       );
     }
     if (!deletedRow) {

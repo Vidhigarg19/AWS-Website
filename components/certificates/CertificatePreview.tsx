@@ -169,19 +169,17 @@ export function CertificatePreview({
       const dateSize = getFittingFontSize(dateLine.length, 34, 57);
       const datePrefixWidth = "on ".length * dateSize * 0.602;
       const dateLineWidth = dateLine.length * dateSize * 0.602;
-      const rankLineY = 1550 - rankSize * 0.38;
+      const rankLineY = 1682 - rankSize * 0.38;
       const excellenceTextXml = `
-        <text x="${cx}" y="1215" text-anchor="middle" font-size="34" font-weight="400" fill="#555555">This certificate is proudly presented to</text>
-        <text x="${cx}" y="1365" text-anchor="middle" font-size="${nameSize}" font-weight="700" fill="#161D26">${escapeXml(name)}</text>
-        <text x="${cx}" y="1430" text-anchor="middle" font-size="32" font-weight="400" fill="#555555">for securing</text>
+        <text x="${cx}" y="1347" text-anchor="middle" font-size="34" font-weight="400" fill="#555555">This certificate is proudly presented to</text>
+        <text x="${cx}" y="1497" text-anchor="middle" font-size="${nameSize}" font-weight="700" fill="#161D26">${escapeXml(name)}</text>
+        <text x="${cx}" y="1562" text-anchor="middle" font-size="32" font-weight="400" fill="#555555">for securing</text>
         <rect x="${cx - rankWidth / 2 - 195}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
         <rect x="${cx + rankWidth / 2 + 55}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
-        <text x="${cx}" y="1550" text-anchor="middle" font-size="${rankSize}" font-weight="700" fill="#FF9900">${escapeXml(awardTitle)}</text>
-        <text x="${cx}" y="1645" text-anchor="middle" font-size="54" font-weight="400" fill="#555555">in the</text>
-        <text x="${cx}" y="1725" text-anchor="middle" font-size="${eventSize}" font-weight="700" fill="#FF9900">${escapeXml(event)}</text>
-        <text x="${cx}" y="1820" text-anchor="middle" font-size="28" font-weight="400" fill="#444444">conducted by AWS Student Builder Group at Tulas University</text>
-        <text x="${cx - dateLineWidth / 2}" y="1915" font-size="${dateSize}" font-weight="400" fill="#555555">on </text>
-        <text x="${cx - dateLineWidth / 2 + datePrefixWidth}" y="1915" font-size="${dateSize}" font-weight="400" fill="#161D26">${escapeXml(date)}</text>
+        <text x="${cx}" y="1682" text-anchor="middle" font-size="${rankSize}" font-weight="700" fill="#FF9900">${escapeXml(awardTitle)}</text>
+        <text x="${cx}" y="1777" text-anchor="middle" font-size="54" font-weight="400" fill="#555555">in the</text>
+        <text x="${cx}" y="1857" text-anchor="middle" font-size="${eventSize}" font-weight="700" fill="#FF9900">${escapeXml(event)}</text>
+        <text x="${cx}" y="1952" text-anchor="middle" font-size="28" font-weight="400" fill="#444444">conducted by AWS Student Builder Group at Tulas University</text>
       `;
       const qrAndMetaXml = `
         <g id="dynamic-verification-meta">

@@ -480,14 +480,20 @@ function AdminPageContent() {
   }, [portalConfig?.active_event_id, fetchTopPerformers]);
 
   // ── Auth ──────────────────────────────────────────────────
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
     router.push("/login");
     router.refresh();
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const handleMobileLogout = () => void handleLogout();
+    window.addEventListener("admin-logout-request", handleMobileLogout);
+    return () => window.removeEventListener("admin-logout-request", handleMobileLogout);
+  }, [handleLogout]);
 
   // ── Form Handlers ─────────────────────────────────────────
   const resetForm = () => {
@@ -1651,7 +1657,7 @@ function AdminPageContent() {
 
   return (
     <div
-      className="min-h-screen text-[#F4F4F6] selection:bg-[#6C63FF]/30 pb-24"
+      className="admin-responsive min-h-screen w-full overflow-x-clip text-[#F4F4F6] selection:bg-[#6C63FF]/30 pb-24"
       style={{
         background: `
           radial-gradient(1000px 500px at 15% 0%, rgba(108,99,255,0.14), transparent 70%),
@@ -1663,9 +1669,9 @@ function AdminPageContent() {
       }}
     >
       {/* ── Main Operations Container ───────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-28 sm:pt-36 space-y-10">
+      <main className="mx-auto w-full min-w-0 max-w-7xl px-4 sm:px-6 pt-28 sm:pt-36 space-y-10">
         {/* ── Top Bar: Admin Portal Heading & Sign Out ───────────────────────── */}
-        <div className="flex items-center justify-between gap-4 pb-6 border-b border-white/[0.06]">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-white/[0.06]">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <div
               className={cn(
@@ -1713,7 +1719,7 @@ function AdminPageContent() {
 
           <button
             onClick={handleLogout}
-            className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs font-medium text-[#71717A] hover:text-red-400 hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/20 transition-all flex items-center gap-2 cursor-pointer bg-white/[0.02] shrink-0"
+            className="hidden h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs font-medium text-[#71717A] hover:text-red-400 hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/20 transition-all lg:flex items-center gap-2 cursor-pointer bg-white/[0.02] shrink-0"
             title="Sign Out of Admin Portal"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -1993,7 +1999,7 @@ function AdminPageContent() {
                         </div>
 
                         {/* Turnout stats box */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
                             <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717A] block">
                               Active Event Checked In
@@ -2820,8 +2826,8 @@ function AdminPageContent() {
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
+                    <div className="max-w-full overflow-x-auto">
+                      <table className="w-full min-w-[760px] text-left text-xs border-collapse">
                         <thead>
                           <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[#71717A] font-mono text-[10.5px] uppercase tracking-wider">
                             <th className="py-3.5 px-5">Participant</th>
@@ -3095,7 +3101,7 @@ function AdminPageContent() {
                     <p role="alert" className="text-xs text-red-400">{topPerformersError}</p>
                   )}
 
-                  <div className="overflow-x-auto rounded-xl border border-white/[0.07]">
+                  <div className="max-w-full overflow-x-auto rounded-xl border border-white/[0.07]">
                     <table className="w-full min-w-[900px] text-left text-xs">
                       <thead className="bg-white/[0.03] text-[10px] font-mono uppercase tracking-wider text-[#71717A]">
                         <tr>
@@ -3564,7 +3570,7 @@ function AdminPageContent() {
       {/* ══════════════════════════════════════════════════ */}
       {showForm && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain"
+          className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4 flex items-center justify-center overscroll-contain"
           data-lenis-prevent
           onWheel={(e) => e.stopPropagation()}
         >
@@ -3940,7 +3946,7 @@ function AdminPageContent() {
       {/* ══════════════════════════════════════════════════ */}
       {showTeamForm && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain"
+          className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4 flex items-center justify-center overscroll-contain"
           data-lenis-prevent
           onWheel={(e) => e.stopPropagation()}
         >
@@ -4321,7 +4327,7 @@ function AdminPageContent() {
       {/* ══════════════════════════════════════════════════ */}
       {showBulkImport && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain"
+          className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4 flex items-center justify-center overscroll-contain"
           data-lenis-prevent
           onWheel={(e) => e.stopPropagation()}
         >
@@ -4593,8 +4599,8 @@ function AdminPageContent() {
                       </span>
                     </div>
                     <div className="rounded-2xl overflow-hidden border border-white/[0.07]">
-                      <div className="overflow-x-auto max-h-64" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.12) transparent" }}>
-                        <table className="w-full text-xs">
+                      <div className="max-w-full overflow-x-auto max-h-64" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.12) transparent" }}>
+                        <table className="w-full min-w-[600px] text-xs">
                           <thead className="bg-[#0B0B0F] border-b border-white/[0.07]">
                             <tr>
                               {["#", "Name", "Role", "Course", "Branch", "Year", "Batch"].map((h) => (
@@ -4709,7 +4715,7 @@ function AdminPageContent() {
       {/* ══════════════════════════════════════════════════ */}
       {selectedMediaEvent && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-200"
           data-lenis-prevent
           onWheel={(e) => e.stopPropagation()}
         >
@@ -4989,7 +4995,7 @@ function AdminPageContent() {
       {/* ══════════════════════════════════════════════════ */}
       {confirmModal.isOpen && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-150"
           data-lenis-prevent
           onWheel={(e) => e.stopPropagation()}
         >
@@ -5077,6 +5083,25 @@ function AdminPageContent() {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        @media (max-width: 1023px) {
+          .admin-responsive button {
+            min-height: 44px;
+          }
+
+          .admin-responsive [class*="justify-between"],
+          .admin-responsive [class*="justify-end"] {
+            flex-wrap: wrap;
+          }
+
+          .admin-responsive button[class~="w-7"],
+          .admin-responsive button[class~="w-8"],
+          .admin-responsive button[class~="w-9"],
+          .admin-responsive button[class~="w-10"] {
+            min-width: 44px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

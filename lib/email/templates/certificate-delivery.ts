@@ -1,5 +1,30 @@
 import { getAwardTitle } from "../../certificates/award-title";
 
+const SOCIAL_LINKS = [
+  {
+    platform: "whatsapp",
+    label: "WhatsApp",
+    url: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4",
+  },
+  {
+    platform: "instagram",
+    label: "Instagram",
+    url: "https://instagram.com/aws.sbgtulas",
+  },
+  {
+    platform: "meetup",
+    label: "Meetup",
+    url: "https://www.meetup.com/aws-sbg-at-tulas-university/",
+  },
+  {
+    platform: "linkedin",
+    label: "LinkedIn",
+    url: "https://www.linkedin.com/company/aws-tulas/",
+  },
+] as const;
+
+export type CertificateSocialPlatform = (typeof SOCIAL_LINKS)[number]["platform"];
+
 export interface CertificateEmailData {
   to: string;
   recipientName: string;
@@ -57,15 +82,24 @@ function generateCertificateMessageText(data: CertificateEmailData): string {
 
 export function generateCertificateEmailHtml(
   data: CertificateEmailData,
-  options: { bannerSrc?: string | null } = {}
+  options: {
+    iconSources?: Partial<Record<CertificateSocialPlatform, string | null>>;
+  } = {}
 ): string {
   const safeRecipientName = escapeHtml(data.recipientName);
   const safeVerificationUrl = escapeVerificationHref(data.verificationUrl);
-  const bannerSrc =
-    options.bannerSrc === undefined ? "../public/email/banner.png" : options.bannerSrc;
-  const banner = bannerSrc
-    ? `<tr><td style="padding:0;"><img src="${escapeHtml(bannerSrc)}" width="600" alt="AWS Student Builder Group" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:10px;"></td></tr>`
-    : "";
+  const banner = `<tr><td style="padding:0;"><img src="https://awstulas.org/email/banner.png" width="600" alt="AWS Student Builder Group" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:10px;"></td></tr>`;
+  const socialIcons = SOCIAL_LINKS.map((socialLink) => {
+    const iconSrc =
+      options.iconSources?.[socialLink.platform] === undefined
+        ? `cid:certificate-icon-${socialLink.platform}`
+        : options.iconSources[socialLink.platform];
+    const icon = iconSrc
+      ? `<img src="${escapeHtml(iconSrc)}" width="32" height="32" alt="${socialLink.label}" style="display:block;width:32px;height:32px;border:0;">`
+      : `<span style="color:#6D28D9;font-size:12px;line-height:32px;text-decoration:underline;">${socialLink.label}</span>`;
+
+    return `<td align="center" style="padding:0 8px;"><a href="${escapeHtml(socialLink.url)}" style="display:inline-block;text-decoration:none;">${icon}</a></td>`;
+  }).join("");
   const awardTitle = getAwardTitle(data.awardTitle);
   const emailData = { ...data, awardTitle };
   const eventParagraph = awardTitle
@@ -105,7 +139,11 @@ export function generateCertificateEmailHtml(
           <tr>
             <td style="padding:0 30px 22px;background-color:#FFFFFF;text-align:center;">
               <div style="height:1px;background-color:#F3EEFF;font-size:0;line-height:0;">&nbsp;</div>
-              <p style="margin:15px 0 0;font-size:11px;line-height:1.5;letter-spacing:1.5px;color:#A0A0A0;">Learn. Build. Innovate. Together.</p>
+              <p style="margin:14px 0 10px;font-size:12px;line-height:1.6;color:#555566;">Share your achievement on <a href="${escapeHtml(SOCIAL_LINKS[3].url)}" style="color:#6D28D9;text-decoration:underline;">LinkedIn</a> and don't forget to tag <strong style="color:#1F1F2E;">AWS Student Builder Group at Tulas University</strong>.</p>
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;border-collapse:collapse;">
+                <tr>${socialIcons}</tr>
+              </table>
+              <p style="margin:10px 0 0;font-size:11px;line-height:1.5;letter-spacing:1.5px;color:#A0A0A0;">Learn. Build. Innovate. Together.</p>
             </td>
           </tr>
         </table>
@@ -134,6 +172,13 @@ export function generateCertificateEmailText(data: CertificateEmailData): string
     `Claim your certificate: ${data.verificationUrl}`,
     "",
     "Thank you for being a part of our community. We look forward to seeing you achieve many more milestones in your journey!",
+    "",
+    "Share your achievement on LinkedIn and don't forget to tag AWS Student Builder Group at Tulas University.",
+    "",
+    `LinkedIn: ${SOCIAL_LINKS[3].url}`,
+    `Instagram: ${SOCIAL_LINKS[1].url}`,
+    `WhatsApp: ${SOCIAL_LINKS[0].url}`,
+    `Meetup: ${SOCIAL_LINKS[2].url}`,
     "",
     "Warm Regards,",
     "Team AWS Student Builder Group",

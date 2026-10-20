@@ -55,8 +55,6 @@ const commonData = {
   certificateId: "AWS-SBG-2026-A8F92K",
   verificationUrl: "https://awstulas.org/verify/AWS-SBG-2026-A8F92K",
 };
-const bannerPath = path.join(root, "public", "email", "banner.png");
-const bannerSrc = fs.existsSync(bannerPath) ? "../public/email/banner.png" : null;
 const previews = [
   {
     filename: "certificate-participation-email.html",
@@ -78,7 +76,14 @@ const outputDir = path.join(root, "tmp");
 fs.mkdirSync(outputDir, { recursive: true });
 
 for (const preview of previews) {
-  const html = generateCertificateEmailHtml(preview.data, { bannerSrc });
+  const html = generateCertificateEmailHtml(preview.data, {
+    iconSources: {
+      whatsapp: "../public/email/icons/whatsapp.png",
+      instagram: "../public/email/icons/instagram.png",
+      meetup: "../public/email/icons/meetup.png",
+      linkedin: "../public/email/icons/linkedin.png",
+    },
+  });
   const text = generateCertificateEmailText(preview.data);
   fs.writeFileSync(path.join(outputDir, preview.filename), html, "utf8");
   fs.writeFileSync(

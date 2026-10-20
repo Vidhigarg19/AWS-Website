@@ -139,41 +139,6 @@ export default function UpcomingEventCard() {
     return () => clearTimeout(timer);
   }, [upcomingEvent, pastEvents]);
 
-  // GSAP Entrance Animations
-  useGSAP(
-    () => {
-      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-
-      gsap.from(".upcoming-header-el", {
-        opacity: 0,
-        y: 16,
-        stagger: 0.08,
-        duration: 0.5,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: ".upcoming-header",
-          start: isMobile ? "top 95%" : "top 90%",
-          toggleActions: "play none none none",
-          once: true,
-        },
-      });
-
-      gsap.from(".upcoming-featured-card", {
-        opacity: 0,
-        y: 20,
-        duration: 0.6,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: ".upcoming-featured-card",
-          start: isMobile ? "top 95%" : "top 90%",
-          toggleActions: "play none none none",
-          once: true,
-        },
-      });
-    },
-    { scope: containerRef }
-  );
-
   const isFallback = !upcomingEvent;
 
   // Use real database upcoming event if available, or fallback community announcement
@@ -214,8 +179,8 @@ export default function UpcomingEventCard() {
 
         <div className="relative">
           {/* Section Header Left */}
-          <div className="upcoming-header max-w-2xl mb-8 sm:mb-12">
-            <div className="upcoming-header-el inline-flex items-center gap-2 mb-2 sm:mb-3">
+          <div className="max-w-md lg:max-w-[420px] mb-8 sm:mb-12 lg:mb-4">
+            <div className="inline-flex items-center gap-2 mb-2 sm:mb-3">
               <span className="w-2.5 h-2.5 rounded-sm bg-primary-light" />
               <span className="text-[11px] sm:text-xs font-mono uppercase tracking-[0.18em] text-white/70 font-semibold">
                 UPCOMING EVENT
@@ -223,28 +188,28 @@ export default function UpcomingEventCard() {
               <span className="w-8 sm:w-12 h-px bg-white/20" />
             </div>
 
-            <h2 className="upcoming-header-el font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
               What&apos;s{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-light via-purple-300 to-accent">
                 Next?
               </span>
             </h2>
 
-            <p className="upcoming-header-el text-sm sm:text-base text-white/65 mt-2.5 max-w-xl leading-relaxed">
+            <p className="text-sm sm:text-base text-white/65 mt-2.5 leading-relaxed">
               Join our upcoming event and be part of hands-on learning, engaging
               sessions and a growing community of builders.
             </p>
           </div>
 
           {/* ── THE FEATURED UPCOMING EVENT CARD ── */}
-          <div className="upcoming-featured-card relative mt-8 sm:mt-12">
-            {/* Peeking AWS Cloud Mascot for Desktop (Positioned on top border between upcoming event label and Register button) */}
-            <div className="hidden lg:block absolute -top-24 xl:-top-28 right-56 xl:right-72 w-32 xl:w-36 z-20 pointer-events-none select-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
+          <div className="upcoming-featured-card relative mt-16 sm:mt-20 lg:mt-10 xl:mt-12">
+            {/* Peeking AWS Cloud Mascot (Positioned on top border matching reference image) */}
+            <div className="absolute z-20 pointer-events-none select-none drop-shadow-[0_25px_50px_rgba(0,0,0,0.9)] bottom-full translate-y-[16px] sm:translate-y-[20px] lg:translate-y-[26px] xl:translate-y-[30px] right-3 sm:right-6 lg:right-[19%] xl:right-[22%] w-36 sm:w-48 lg:w-[320px] xl:w-[350px]">
               <Image
-                src="/chatbotmascot.webp"
+                src="/whats-next-kiro.webp"
                 alt="AWS Builder Mascot"
-                width={200}
-                height={200}
+                width={350}
+                height={233}
                 className="w-full h-auto object-contain"
                 priority
               />
@@ -286,18 +251,6 @@ export default function UpcomingEventCard() {
                         <br />
                         BUILDER GROUP
                       </div>
-                    </div>
-
-                    {/* Mobile Mascot: Positioned cleanly between Student Builder Group text and SBG logo */}
-                    <div className="flex lg:hidden items-center justify-center shrink-0 pointer-events-none select-none">
-                      <Image
-                        src="/chatbotmascot.png"
-                        alt="AWS Builder Mascot"
-                        width={48}
-                        height={48}
-                        className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]"
-                        priority
-                      />
                     </div>
 
                     <div className="w-7 h-7 rounded-full border border-primary/30 bg-white/[0.05] p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">

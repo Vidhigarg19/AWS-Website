@@ -1,3 +1,5 @@
+import { getAwardTitle } from "../../certificates/award-title";
+
 export interface CertificateEmailData {
   to: string;
   recipientName: string;
@@ -33,19 +35,21 @@ function escapeVerificationHref(value: string): string {
 }
 
 function generateCertificateMessageHtml(data: CertificateEmailData): string {
+  const awardTitle = getAwardTitle(data.awardTitle);
   const eventName = `<strong style="color:#1F1F2E;">${escapeHtml(data.eventName)}</strong>`;
   const groupName = '<strong style="color:#1F1F2E;">AWS Student Builder Group</strong>';
 
-  if (data.awardTitle) {
-    return `Congratulations on securing <strong style="color:#5B21B6;">${escapeHtml(data.awardTitle)}</strong> in ${eventName}, organized by the ${groupName} at Tulas University! 🏆`;
+  if (awardTitle) {
+    return `Congratulations on securing <strong style="color:#5B21B6;">${escapeHtml(awardTitle)}</strong> in ${eventName}, organized by the ${groupName} at Tulas University! 🏆`;
   }
 
   return `Thank you for participating in ${eventName}, organized by the ${groupName} at Tulas University!`;
 }
 
 function generateCertificateMessageText(data: CertificateEmailData): string {
-  if (data.awardTitle) {
-    return `Congratulations on securing ${data.awardTitle} in ${data.eventName}, organized by the AWS Student Builder Group at Tulas University! 🏆`;
+  const awardTitle = getAwardTitle(data.awardTitle);
+  if (awardTitle) {
+    return `Congratulations on securing ${awardTitle} in ${data.eventName}, organized by the AWS Student Builder Group at Tulas University! 🏆`;
   }
 
   return `Thank you for participating in ${data.eventName}, organized by the AWS Student Builder Group at Tulas University!`;
@@ -62,7 +66,9 @@ export function generateCertificateEmailHtml(
   const banner = bannerSrc
     ? `<tr><td style="padding:0;"><img src="${escapeHtml(bannerSrc)}" width="600" alt="AWS Student Builder Group" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:10px;"></td></tr>`
     : "";
-  const eventParagraph = data.awardTitle
+  const awardTitle = getAwardTitle(data.awardTitle);
+  const emailData = { ...data, awardTitle };
+  const eventParagraph = awardTitle
     ? "Your dedication, knowledge, and enthusiasm truly made you stand out. We are delighted to recognize your achievement and hope you continue learning, building, and pushing your limits."
     : "Your participation, curiosity, and enthusiasm truly made the event special. We appreciate your involvement and hope you continue learning, building, and growing with our community.";
 
@@ -72,7 +78,7 @@ export function generateCertificateEmailHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${data.awardTitle ? "Congratulations on Your Achievement" : "Certificate of Participation"} | AWS SBG</title>
+  <title>${awardTitle ? "Congratulations on Your Achievement" : "Certificate of Participation"} | AWS SBG</title>
 </head>
 <body style="margin:0;padding:0;background-color:#FFFFFF;color:#1F1F2E;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#FFFFFF;border-collapse:collapse;">
@@ -83,7 +89,7 @@ export function generateCertificateEmailHtml(
           <tr>
             <td style="padding:28px 30px 22px;background-color:#FFFFFF;color:#1F1F2E;">
               <p style="margin:0 0 18px;font-size:16px;line-height:1.5;color:#1F1F2E;">Dear <strong>${safeRecipientName}</strong>,</p>
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#1F1F2E;">${generateCertificateMessageHtml(data)}</p>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#1F1F2E;">${generateCertificateMessageHtml(emailData)}</p>
               <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#555566;">${eventParagraph}</p>
               <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 26px;border-collapse:separate;">
                 <tr>
@@ -112,8 +118,9 @@ export function generateCertificateEmailHtml(
 }
 
 export function generateCertificateEmailText(data: CertificateEmailData): string {
-  const message = generateCertificateMessageText(data);
-  const eventParagraph = data.awardTitle
+  const awardTitle = getAwardTitle(data.awardTitle);
+  const message = generateCertificateMessageText({ ...data, awardTitle });
+  const eventParagraph = awardTitle
     ? "Your dedication, knowledge, and enthusiasm truly made you stand out. We are delighted to recognize your achievement and hope you continue learning, building, and pushing your limits."
     : "Your participation, curiosity, and enthusiasm truly made the event special. We appreciate your involvement and hope you continue learning, building, and growing with our community.";
 

@@ -9,12 +9,6 @@
 
 import QRCode from "qrcode";
 
-/** Default base URL for certificate verification */
-const DEFAULT_BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "http://localhost:3000";
-
 /**
  * Constructs the public verification URL for a certificate.
  *
@@ -26,7 +20,12 @@ export function getVerificationUrl(
   certificateId: string,
   baseUrl?: string
 ): string {
-  const base = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+  const resolvedBaseUrl =
+    baseUrl ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000";
+  const base = resolvedBaseUrl.replace(/\/+$/, "");
   return `${base}/verify/${encodeURIComponent(certificateId)}`;
 }
 

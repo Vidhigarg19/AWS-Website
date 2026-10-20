@@ -6,19 +6,47 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const templatePath = path.join(root, "lib", "email", "templates", "certificate-delivery.ts");
-const templateSource = fs.readFileSync(templatePath, "utf8");
-const { outputText } = ts.transpileModule(templateSource, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020,
-  },
-  fileName: templatePath,
-});
-const templateModule = { exports: {} };
-new Function("module", "exports", outputText)(templateModule, templateModule.exports);
+const moduleCache = new Map();
 
-const { generateCertificateEmailHtml, generateCertificateEmailText } = templateModule.exports;
+function loadTypeScriptModule(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  if (moduleCache.has(resolvedPath)) return moduleCache.get(resolvedPath).exports;
+
+  const loadedModule = { exports: {} };
+  moduleCache.set(resolvedPath, loadedModule);
+  const source = fs.readFileSync(resolvedPath, "utf8");
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+    fileName: resolvedPath,
+  });
+  const nativeRequire = createRequire(resolvedPath);
+  const moduleRequire = (specifier) => {
+    if (specifier.startsWith(".")) {
+      const dependencyPath = path.resolve(path.dirname(resolvedPath), specifier);
+      return loadTypeScriptModule(`${dependencyPath}.ts`);
+    }
+    return nativeRequire(specifier);
+  };
+
+  new Function("module", "exports", "require", outputText)(
+    loadedModule,
+    loadedModule.exports,
+    moduleRequire
+  );
+  return loadedModule.exports;
+}
+
+const templatePath = path.join(root, "lib", "email", "templates", "certificate-delivery.ts");
+const templateModule = loadTypeScriptModule(templatePath);
+const { getAwardTitle } = loadTypeScriptModule(
+  path.join(root, "lib", "certificates", "award-title.ts")
+);
+
+const { generateCertificateEmailHtml, generateCertificateEmailText } = templateModule;
 const commonData = {
   to: "student@example.com",
   recipientName: "Aarav Sharma",
@@ -35,11 +63,16 @@ const previews = [
     title: "Certificate of Participation",
     data: commonData,
   },
-  {
-    filename: "certificate-excellence-email.html",
-    title: "Certificate of Excellence",
-    data: { ...commonData, awardTitle: "1st Position" },
-  },
+  ...[1, 2, 3, 4].map((rank) => {
+    const awardTitle = getAwardTitle(rank);
+    return {
+      filename: rank === 1
+        ? "certificate-excellence-email.html"
+        : `certificate-excellence-rank-${rank}-email.html`,
+      title: `Certificate of Excellence — ${awardTitle}`,
+      data: { ...commonData, awardTitle },
+    };
+  }),
 ];
 const outputDir = path.join(root, "tmp");
 fs.mkdirSync(outputDir, { recursive: true });

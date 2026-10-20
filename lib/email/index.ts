@@ -12,6 +12,7 @@ import {
   generateCertificateEmailHtml,
   generateCertificateEmailText,
 } from "./templates/certificate-delivery";
+import { getAwardTitle } from "../certificates/award-title";
 
 export interface SendEmailResult {
   success: boolean;
@@ -87,7 +88,7 @@ export async function sendCertificateEmail(
   data: SendCertificateEmailParams
 ): Promise<SendEmailResult> {
   const { to, certificateId, pdfBuffer } = data;
-  const subject = data.awardTitle
+  const subject = getAwardTitle(data.awardTitle)
     ? `Congratulations on Your Achievement | ${data.eventName} – AWS SBG`
     : `Your Certificate of Participation — AWS Student Builder Group (${data.eventName})`;
   const bannerPath = path.join(process.cwd(), "public", "email", "banner.png");

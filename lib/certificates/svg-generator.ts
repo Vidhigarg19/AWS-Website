@@ -15,6 +15,10 @@
 import fs from "fs/promises";
 import path from "path";
 import { parse, type Font } from "opentype.js";
+import {
+  getAwardTitle,
+  getCertificateAwardLayout,
+} from "./award-title";
 
 export interface SvgCertificateInput {
   participantName: string;
@@ -52,8 +56,13 @@ export function buildCertIdText(certificateId: string): string {
 }
 
 /** Returns the full verification URL text as it appears on the certificate. */
-export function buildVerifyUrlText(certificateId: string): string {
-  return `Verify Certificate: https://awstulas.org/verify/${certificateId}`;
+export function buildVerifyUrlText(
+  certificateId: string,
+  verificationUrl?: string
+): string {
+  return `Verify Certificate: ${
+    verificationUrl || `https://awstulas.org/verify/${certificateId}`
+  }`;
 }
 
 let cachedBoldFont: Font | null = null;
@@ -64,7 +73,7 @@ let cachedSignatureDataUri: string | null = null;
  * Loads the selected SVG template from disk for each generation.
  */
 export async function getBaseSvgTemplate(awardTitle?: string): Promise<string> {
-  const templateName = awardTitle
+  const templateName = getAwardTitle(awardTitle)
     ? "Certificate-of-Excellence-Template.svg"
     : "Certificate-Template.svg";
   const templatePath = path.join(
@@ -251,9 +260,10 @@ function getFittingFontSize(
 export async function generateCertificateSvg(
   input: SvgCertificateInput
 ): Promise<string> {
+  const awardTitle = getAwardTitle(input.awardTitle);
   const [{ boldFont, regFont }, baseSvg, signatureDataUri] = await Promise.all([
     getFonts(),
-    getBaseSvgTemplate(input.awardTitle),
+    getBaseSvgTemplate(awardTitle),
     input.signatureDataUri ? Promise.resolve(input.signatureDataUri) : getSignatureDataUri(),
   ]);
 
@@ -268,7 +278,9 @@ export async function generateCertificateSvg(
   // ── Right panel center X ──────────────────────────────────────
   const cx = 2475;
 
-  if (input.awardTitle) {
+  if (awardTitle) {
+    const { rankText, contextText, isRunnerUp } =
+      getCertificateAwardLayout(awardTitle);
     const line1 = "This certificate is proudly presented to";
     const line1Size = getFittingFontSize(regFont, line1, 34, 1180);
     const line1Path = textToSvgPath(regFont, line1, cx, 1347, line1Size, "#555555");
@@ -287,12 +299,12 @@ export async function generateCertificateSvg(
       "#555555"
     );
 
-    const rankSize = getFittingFontSize(boldFont, input.awardTitle, 112, 850);
-    const rankWidth = boldFont.getAdvanceWidth(input.awardTitle, rankSize);
-    const rankBaseline = 1682;
+    const rankSize = getFittingFontSize(boldFont, rankText, 112, 850);
+    const rankWidth = boldFont.getAdvanceWidth(rankText, rankSize);
+    const rankBaseline = isRunnerUp ? 1660 : 1682;
     const rankPath = textToSvgPath(
       boldFont,
-      input.awardTitle,
+      rankText,
       cx,
       rankBaseline,
       rankSize,
@@ -304,28 +316,48 @@ export async function generateCertificateSvg(
       <rect x="${cx + rankWidth / 2 + 55}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
     `;
 
-    const eventPrefix = "in the";
+    const eventPrefix = contextText;
+    const eventPrefixBaseline = isRunnerUp ? 1738 : 1777;
     const eventPrefixPath = textToSvgPath(
       regFont,
       eventPrefix,
       cx,
-      1777,
-      54,
+      eventPrefixBaseline,
+      getFittingFontSize(regFont, eventPrefix, 54, 1240),
       "#555555"
     );
     const eventSize = getFittingFontSize(boldFont, eventTitle, 62, 1240);
+    const eventBaseline = isRunnerUp ? 1818 : 1857;
     const eventNamePath = textToSvgPath(
       boldFont,
       eventTitle,
       cx,
-      1857,
+      eventBaseline,
       eventSize,
       "#FF9900"
     );
 
     const details = "conducted by AWS Student Builder Group at Tulas University";
     const detailsSize = getFittingFontSize(regFont, details, 28, 1240);
-    const detailsPath = textToSvgPath(regFont, details, cx, 1952, detailsSize, "#444444");
+    const detailsPath = textToSvgPath(
+      regFont,
+      details,
+      cx,
+      1898,
+      detailsSize,
+      "#444444"
+    );
+    const dateText = `on ${eventDate}`;
+    const datePath = isRunnerUp
+      ? textToSvgPath(
+          boldFont,
+          dateText,
+          cx,
+          1958,
+          getFittingFontSize(boldFont, dateText, 32, 1180),
+          "#444444"
+        )
+      : "";
 
     const qrImageXml = input.qrDataUri
       ? `<image href="${input.qrDataUri}" x="220" y="2010" width="230" height="230" />`
@@ -353,9 +385,12 @@ export async function generateCertificateSvg(
       )
       .replace(
         "<!-- EVENT_DETAILS_PLACEHOLDER -->",
-        `${eventPrefixPath}${eventNamePath}${detailsPath}`
+        `${eventPrefixPath}${eventNamePath}`
       )
-      .replace("<!-- SIGNER_NAME_PLACEHOLDER -->", sigImgXml)
+      .replace(
+        "<!-- SIGNER_NAME_PLACEHOLDER -->",
+        `${isRunnerUp ? `${detailsPath}${datePath}` : ""}${sigImgXml}`
+      )
       .replace("<!-- SIGNER_TITLE_PLACEHOLDER -->", `${signerTitlePath}${signerOrgPath}`)
       .replace("<!-- QR_AND_META_PLACEHOLDER -->", qrAndMetaXml);
   }

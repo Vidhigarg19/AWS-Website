@@ -4,26 +4,12 @@ import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { generateCertificateId } from "@/lib/certificates/id-generator";
+import { getAwardTitle } from "@/lib/certificates/award-title";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
 import { getVerificationUrl } from "@/lib/certificates/qr-generator";
 import type { ApiResponse } from "@/types/certificate";
 
 export const dynamic = "force-dynamic";
-
-function ordinal(rank: number): string {
-  const lastTwoDigits = rank % 100;
-  const suffix =
-    lastTwoDigits >= 11 && lastTwoDigits <= 13
-      ? "th"
-      : rank % 10 === 1
-        ? "st"
-        : rank % 10 === 2
-          ? "nd"
-          : rank % 10 === 3
-            ? "rd"
-            : "th";
-  return `${rank}${suffix} Position`;
-}
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json(
@@ -120,7 +106,7 @@ export async function POST(
     }
     if (!participant) return errorResponse("The participant record for this top performer no longer exists.", 404);
 
-    const awardTitle = ordinal(topPerformer.rank);
+    const awardTitle = getAwardTitle(topPerformer.rank);
     const certificateId = await generateCertificateId(async (candidateId) => {
       const { data, error } = await admin
         .from("certificates")

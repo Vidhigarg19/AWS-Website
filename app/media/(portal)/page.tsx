@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { requirePortalPage } from "@/lib/auth/require-portal-page";
 import { getAdminClient } from "@/lib/supabase/admin";
 
 // Always fresh: this lists live data and sits behind sign-in.
@@ -17,7 +20,8 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function MediaHomePage() {
-  // Layout already verified the role. This page only READS the event list.
+  // Layouts are not re-run on client navigation, so check the role here too.
+  await requirePortalPage();
   const db = getAdminClient();
   let events: EventRow[] = [];
   let loadFailed = false;
@@ -43,8 +47,8 @@ export default async function MediaHomePage() {
       <div>
         <h2 id="events-heading" className="text-lg font-semibold">Events</h2>
         <p className="mt-1 text-sm text-[#A1A1AA]">
-          Events created by the super admin appear here. Photo and video uploads
-          for each event are coming next.
+          Events created by the super admin appear here. Pick one to upload its
+          photos and videos.
         </p>
       </div>
 
@@ -59,11 +63,17 @@ export default async function MediaHomePage() {
       ) : (
         <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
           {events.map((event) => (
-            <li key={event.id} className="flex items-center justify-between gap-4 p-4">
-              <span className="font-medium">{event.name}</span>
-              <span className="shrink-0 text-xs font-mono text-[#A1A1AA]">
-                {formatDate(event.event_date)}
-              </span>
+            <li key={event.id}>
+              <Link
+                href={`/media/events/${event.id}`}
+                className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.04] focus-visible:outline-none"
+              >
+                <span className="font-medium">{event.name}</span>
+                <span className="flex shrink-0 items-center gap-2 text-xs font-mono text-[#A1A1AA]">
+                  {formatDate(event.event_date)}
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

@@ -210,6 +210,7 @@ export async function POST(request: NextRequest) {
           .select("certificate_id")
           .eq("event_id", eventId)
           .eq("participant_id", participantId)
+          .is("award_title", null)
           .maybeSingle();
 
         return NextResponse.json(

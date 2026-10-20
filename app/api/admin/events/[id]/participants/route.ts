@@ -57,6 +57,8 @@ export async function GET(
     }
 
     // 2. Fetch attendance rows joined with participants & certificates
+    // Excellence certificates have a NULL attendance_id, so they cannot join
+    // through attendance even though they share the participant and event.
     const { data: attendanceRows, error: attError, count } = await supabase
       .from("attendance")
       .select(
@@ -173,17 +175,26 @@ export async function DELETE(
 
     // 1. Delete certificate(s) for this event & participant / attendance
     if (certificateId) {
-      await supabase.from("certificates").delete().eq("certificate_id", certificateId);
+      await supabase
+        .from("certificates")
+        .delete()
+        .eq("certificate_id", certificateId)
+        .is("award_title", null);
     }
     if (attendanceId) {
-      await supabase.from("certificates").delete().eq("attendance_id", attendanceId);
+      await supabase
+        .from("certificates")
+        .delete()
+        .eq("attendance_id", attendanceId)
+        .is("award_title", null);
     }
     if (participantId) {
       await supabase
         .from("certificates")
         .delete()
         .eq("event_id", eventId)
-        .eq("participant_id", participantId);
+        .eq("participant_id", participantId)
+        .is("award_title", null);
     }
 
     // 2. Delete attendance record for this event
@@ -208,23 +219,31 @@ export async function DELETE(
         .eq("participant_id", participantId);
     }
 
-    // 3. Clean up participant record if no other attendance records exist
+    // 3. Clean up participant only when no related records remain.
     if (participantId) {
-      const { data: otherAtt } = await supabase
+      const { data: otherAtt, error: otherAttError } = await supabase
         .from("attendance")
         .select("id")
         .eq("participant_id", participantId)
         .limit(1);
 
-      if (!otherAtt || otherAtt.length === 0) {
-        const { data: otherCerts } = await supabase
+      if (!otherAttError && otherAtt?.length === 0) {
+        const { data: otherCerts, error: otherCertsError } = await supabase
           .from("certificates")
           .select("id")
           .eq("participant_id", participantId)
           .limit(1);
 
-        if (!otherCerts || otherCerts.length === 0) {
-          await supabase.from("participants").delete().eq("id", participantId);
+        if (!otherCertsError && otherCerts?.length === 0) {
+          const { data: topPerformers, error: topPerformersError } = await supabase
+            .from("top_performers")
+            .select("id")
+            .eq("participant_id", participantId)
+            .limit(1);
+
+          if (!topPerformersError && topPerformers?.length === 0) {
+            await supabase.from("participants").delete().eq("id", participantId);
+          }
         }
       }
     }

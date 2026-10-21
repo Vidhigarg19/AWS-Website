@@ -9,6 +9,7 @@ import { toast } from "sonner";
 // the /admin first-load bundle.
 import type { DbEvent, DbPortalConfig, AdminParticipantRow, DbTeamMember } from "@/types/certificate";
 import { formatFullName, cn } from "@/lib/utils";
+import { getAwardTitle } from "@/lib/certificates/award-title";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   ArrowRight,
@@ -3134,7 +3135,7 @@ function AdminPageContent() {
                           </tr>
                         ) : topPerformers.map((performer) => (
                           <tr key={performer.id} className="text-[#D4D4D8] hover:bg-white/[0.02]">
-                            <td className="px-4 py-3 font-mono font-semibold text-amber-400">{performer.rank}</td>
+                            <td className="px-4 py-3 font-mono font-semibold text-amber-400">{getAwardTitle(performer.rank)}</td>
                             <td className="px-4 py-3">
                               <span className="block font-semibold text-white">{performer.fullName}</span>
                               <span className="text-[10px] text-[#71717A]">Roll: {performer.rollNo}</span>

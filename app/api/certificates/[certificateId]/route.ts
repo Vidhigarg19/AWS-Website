@@ -45,7 +45,7 @@ export async function GET(
     // 1. Fetch certificate record from DB
     const { data: cert, error: certError } = await supabase
       .from("certificates")
-      .select("id, certificate_id, recipient_name_snapshot, event_name_snapshot, event_date_snapshot, award_title")
+      .select("id, certificate_id, recipient_name_snapshot, event_name_snapshot, event_date_snapshot, award_title, verification_url")
       .eq("certificate_id", cleanId)
       .maybeSingle();
 
@@ -63,6 +63,7 @@ export async function GET(
       eventTitle: cert.event_name_snapshot,
       eventDate: cert.event_date_snapshot,
       awardTitle: cert.award_title || undefined,
+      verificationUrl: cert.verification_url || undefined,
     });
 
     if (!pdfResult.success || !pdfResult.pdfBuffer) {

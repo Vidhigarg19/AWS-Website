@@ -7,10 +7,10 @@
 //    event, signer, and QR code data.
 // 2. Rendering the SVG at 300 DPI via sharp (serverless-compatible).
 // 3. Embedding into a US Letter Landscape PDF page via pdf-lib.
-// 4. [Option C] Overlaying the verification URL as real selectable
-//    PDF text with a clickable URI annotation — fully copy-pasteable.
+// 4. Embedding selectable PDF text and a clickable URI annotation over the
+//    visible verification text drawn into the SVG.
 //
-// 100% SVG-driven background. Verification URL is real PDF text.
+// 100% SVG-driven visible background.
 //
 // ============================================================
 
@@ -29,15 +29,17 @@ import { getVerificationUrl } from "./qr-generator";
 import {
   generateCertificateSvg,
   SVG_CANVAS,
+  CERTIFICATE_META_MAX_WIDTH,
   CERT_ID_SVG_POSITION,
+  CERT_ID_FONT_SIZE,
   VERIFY_URL_SVG_POSITION,
+  VERIFY_URL_FONT_SIZE,
   buildCertIdText,
   buildVerifyUrlText,
 } from "./svg-generator";
 import { getAwardTitle } from "./award-title";
 
-// ── IBM Plex Mono Bold Font Cache & Fontkit Patch ─────────────
-let cachedFontBytes: Buffer | null = null;
+// ── IBM Plex Mono Regular Font Cache & Fontkit Patch ──────────
 let cachedRegularFontBytes: Buffer | null = null;
 let fontkitPatched = false;
 
@@ -75,20 +77,6 @@ function ensureFontkitPatched(sampleBytes: Buffer) {
     console.warn("[PDFGenerator] fontkit patch warning:", err);
   }
   fontkitPatched = true;
-}
-
-async function getIbmPlexMonoBoldBytes(): Promise<Buffer> {
-  if (cachedFontBytes) return cachedFontBytes;
-  const fontPath = path.join(
-    process.cwd(),
-    "public",
-    "fonts",
-    "IBM_Plex_Mono",
-    "IBMPlexMono-Bold.ttf"
-  );
-  cachedFontBytes = await fs.readFile(fontPath);
-  ensureFontkitPatched(cachedFontBytes);
-  return cachedFontBytes;
 }
 
 async function getIbmPlexMonoRegularBytes(): Promise<Buffer> {
@@ -176,8 +164,7 @@ export async function generateCertificatePdf(
     const awardTitle = getAwardTitle(input.awardTitle);
 
     // 4. Generate dynamic SVG certificate
-    //    NOTE: the verification URL text is intentionally excluded from the SVG
-    //    so it can be overlaid as real selectable PDF text below.
+    //    The SVG draws the visible ID and URL, shared with PNG and preview output.
     const svgString = await generateCertificateSvg({
       participantName: input.participantName.trim(),
       eventTitle: input.eventTitle.trim(),
@@ -187,6 +174,7 @@ export async function generateCertificatePdf(
       signerTitle: input.signerTitle?.trim(),
       certificateId,
       qrDataUri,
+      verificationUrl,
     });
 
     // 5. Render SVG to pristine 300-DPI PNG buffer via sharp
@@ -209,35 +197,30 @@ export async function generateCertificatePdf(
 
     // ── Option C: Real selectable PDF text overlay ─────────────────────────
     //
-    // Both Certificate ID and Verify URL are deliberately omitted from the
-    // SVG raster so they live here as actual PDF text — fully selectable,
-    // copy-pasteable, and with a clickable URI annotation in any PDF viewer.
+    // The SVG supplies the visible text shared by PDF, PNG, and preview output.
+    // These transparent duplicates preserve PDF selection and search.
     //
-    // Uses true IBM Plex Mono Bold font matching the certificate typography.
+    // Uses IBM Plex Mono Regular to match the visible grey text.
     let certFont;
     try {
       pdfDoc.registerFontkit(fontkit);
-      const fontBytes = awardTitle
-        ? await getIbmPlexMonoRegularBytes()
-        : await getIbmPlexMonoBoldBytes();
+      const fontBytes = await getIbmPlexMonoRegularBytes();
       certFont = await pdfDoc.embedFont(fontBytes);
     } catch (fontErr) {
-      console.warn(
-        `[PDFGenerator] Custom font embedding failed, falling back to ${
-          awardTitle ? "Courier" : "CourierBold"
-        }:`,
-        fontErr
-      );
-      certFont = await pdfDoc.embedFont(
-        awardTitle ? StandardFonts.Courier : StandardFonts.CourierBold
-      );
+      console.warn("[PDFGenerator] Custom font embedding failed, falling back to Courier:", fontErr);
+      certFont = await pdfDoc.embedFont(StandardFonts.Courier);
     }
 
-    const textColor = rgb(0.086, 0.114, 0.149); // #161D26
+    const textColor = rgb(68 / 255, 68 / 255, 68 / 255); // #444444
 
     // 1. Draw Certificate ID text (selectable)
     const certIdText = buildCertIdText(certificateId);
-    const certIdFontSize = 26 * scaleX; // 26 * 0.24 = 6.24 pt
+    const certIdBaseSize = CERT_ID_FONT_SIZE * scaleX;
+    const certIdFontSize = Math.min(
+      certIdBaseSize,
+      (CERTIFICATE_META_MAX_WIDTH * scaleX * certIdBaseSize) /
+        certFont.widthOfTextAtSize(certIdText, certIdBaseSize)
+    );
     const certIdX = svgToPdfX(CERT_ID_SVG_POSITION.x);
     const certIdY = svgToPdfY(CERT_ID_SVG_POSITION.y);
 
@@ -247,13 +230,19 @@ export async function generateCertificatePdf(
       size: certIdFontSize,
       font: certFont,
       color: textColor,
+      opacity: 0,
     });
 
     // 2. Draw Verify Certificate text (selectable)
     const verifyUrlText = buildVerifyUrlText(certificateId, verificationUrl);
     const labelText = "Verify Certificate: ";
     const urlOnlyText = verificationUrl;
-    const verifyFontSize = 24 * scaleX; // 24 * 0.24 = 5.76 pt
+    const verifyBaseSize = VERIFY_URL_FONT_SIZE * scaleX;
+    const verifyFontSize = Math.min(
+      verifyBaseSize,
+      (CERTIFICATE_META_MAX_WIDTH * scaleX * verifyBaseSize) /
+        certFont.widthOfTextAtSize(verifyUrlText, verifyBaseSize)
+    );
     const verifyX = svgToPdfX(VERIFY_URL_SVG_POSITION.x);
     const verifyY = svgToPdfY(VERIFY_URL_SVG_POSITION.y);
 
@@ -263,6 +252,7 @@ export async function generateCertificatePdf(
       size: verifyFontSize,
       font: certFont,
       color: textColor,
+      opacity: 0,
     });
 
     // ── Clickable URI annotation over the URL portion (No underline) ────────

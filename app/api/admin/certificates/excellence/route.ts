@@ -20,8 +20,6 @@ const ALLOWED_AWARDS = new Set([
   getAwardTitle(1),
   getAwardTitle(2),
   getAwardTitle(3),
-  "2nd Position",
-  "3rd Position",
 ]);
 
 interface IssueExcellenceCertificateBody {
@@ -30,7 +28,7 @@ interface IssueExcellenceCertificateBody {
 }
 
 function isAwardTitle(value: unknown): value is string {
-  return typeof value === "string" && ALLOWED_AWARDS.has(value);
+  return typeof value === "string" && ALLOWED_AWARDS.has(getAwardTitle(value) ?? "");
 }
 
 export async function POST(request: NextRequest) {
@@ -66,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Award title must be 1st Position, 1st Runner Up Position, or 2nd Runner Up Position.",
+          error: `Award title must be one of: ${[...ALLOWED_AWARDS].join(", ")}.`,
         } satisfies ApiResponse,
         { status: 400 }
       );
@@ -184,6 +182,7 @@ export async function POST(request: NextRequest) {
       eventDate: event.event_date,
       certificateId,
       awardTitle,
+      verificationUrl,
     });
 
     if (!pdfResult.success || !pdfResult.pdfBuffer) {

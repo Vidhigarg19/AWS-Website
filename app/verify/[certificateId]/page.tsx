@@ -253,6 +253,7 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
                     eventTitle={cert.eventName}
                     eventDate={formatDate(cert.eventDate)}
                     certificateId={cert.certificateId}
+                    verificationUrl={cert.verificationUrl || undefined}
                     awardTitle={cert.awardTitle || undefined}
                   />
                 </div>

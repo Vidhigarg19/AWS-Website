@@ -25,6 +25,7 @@ export interface SvgCertificateInput {
   eventTitle: string;
   eventDate: string;
   awardTitle?: string;
+  verificationUrl?: string;
   signerName?: string;
   signerTitle?: string;
   certificateId: string;
@@ -43,12 +44,15 @@ export const SVG_CANVAS = { width: 3300, height: 2550 } as const;
  * x=220 (left-aligned), y=2285 (baseline).
  */
 export const CERT_ID_SVG_POSITION = { x: 220, y: 2285 } as const;
+export const CERT_ID_FONT_SIZE = 26;
 
 /**
  * The raw SVG-space position of the verification URL text line.
  * x=220 (left-aligned, same as certId block), y=2330 (baseline).
  */
 export const VERIFY_URL_SVG_POSITION = { x: 220, y: 2330 } as const;
+export const VERIFY_URL_FONT_SIZE = 24;
+export const CERTIFICATE_META_MAX_WIDTH = 1850;
 
 /** Returns the Certificate ID text as it appears on the certificate. */
 export function buildCertIdText(certificateId: string): string {
@@ -274,6 +278,24 @@ export async function generateCertificateSvg(
   const signerTitle = input.signerTitle?.trim() || "Community Program Manager";
   const signerOrg = "AWS Student Builder Group";
   const certificateId = input.certificateId.trim();
+  const certIdText = buildCertIdText(certificateId);
+  const verifyUrlText = buildVerifyUrlText(certificateId, input.verificationUrl);
+  const certIdPath = textToSvgPathLeft(
+    regFont,
+    certIdText,
+    CERT_ID_SVG_POSITION.x,
+    CERT_ID_SVG_POSITION.y,
+    getFittingFontSize(regFont, certIdText, CERT_ID_FONT_SIZE, CERTIFICATE_META_MAX_WIDTH),
+    "#444444"
+  );
+  const verifyUrlPath = textToSvgPathLeft(
+    regFont,
+    verifyUrlText,
+    VERIFY_URL_SVG_POSITION.x,
+    VERIFY_URL_SVG_POSITION.y,
+    getFittingFontSize(regFont, verifyUrlText, VERIFY_URL_FONT_SIZE, CERTIFICATE_META_MAX_WIDTH),
+    "#444444"
+  );
 
   // ── Right panel center X ──────────────────────────────────────
   const cx = 2475;
@@ -317,17 +339,17 @@ export async function generateCertificateSvg(
     `;
 
     const eventPrefix = contextText;
-    const eventPrefixBaseline = isRunnerUp ? 1738 : 1777;
+    const eventPrefixBaseline = isRunnerUp ? 1738 : 1760;
     const eventPrefixPath = textToSvgPath(
       regFont,
       eventPrefix,
       cx,
       eventPrefixBaseline,
-      getFittingFontSize(regFont, eventPrefix, 54, 1240),
+      getFittingFontSize(regFont, eventPrefix, 32, 1240),
       "#555555"
     );
     const eventSize = getFittingFontSize(boldFont, eventTitle, 62, 1240);
-    const eventBaseline = isRunnerUp ? 1818 : 1857;
+    const eventBaseline = isRunnerUp ? 1818 : 1840;
     const eventNamePath = textToSvgPath(
       boldFont,
       eventTitle,
@@ -339,25 +361,24 @@ export async function generateCertificateSvg(
 
     const details = "conducted by AWS Student Builder Group at Tulas University";
     const detailsSize = getFittingFontSize(regFont, details, 28, 1240);
+    const detailsBaseline = eventBaseline + 80;
     const detailsPath = textToSvgPath(
       regFont,
       details,
       cx,
-      1898,
+      detailsBaseline,
       detailsSize,
       "#444444"
     );
     const dateText = `on ${eventDate}`;
-    const datePath = isRunnerUp
-      ? textToSvgPath(
-          boldFont,
-          dateText,
-          cx,
-          1958,
-          getFittingFontSize(boldFont, dateText, 32, 1180),
-          "#444444"
-        )
-      : "";
+    const datePath = textToSvgPath(
+      boldFont,
+      dateText,
+      cx,
+      detailsBaseline + 60,
+      getFittingFontSize(boldFont, dateText, 32, 1180),
+      "#444444"
+    );
 
     const qrImageXml = input.qrDataUri
       ? `<image href="${input.qrDataUri}" x="220" y="2010" width="230" height="230" />`
@@ -365,18 +386,24 @@ export async function generateCertificateSvg(
     const qrAndMetaXml = `
       <g id="dynamic-verification-meta">
         ${qrImageXml}
+        ${certIdPath}
+        ${verifyUrlPath}
       </g>
     `;
 
     const sigImgXml = signatureDataUri
-      ? `<image href="${signatureDataUri}" x="2295" y="2005" width="360" height="130" preserveAspectRatio="xMidYMid meet" />`
+      ? `<image href="${signatureDataUri}" x="2295" y="2077" width="360" height="130" preserveAspectRatio="xMidYMid meet" />`
       : "";
     const signerTitleSize = getFittingFontSize(regFont, signerTitle, 28, 580);
-    const signerTitlePath = textToSvgPath(regFont, signerTitle, cx, 2210, signerTitleSize, "#555555");
+    const signerTitlePath = textToSvgPath(regFont, signerTitle, cx, 2282, signerTitleSize, "#555555");
     const signerOrgSize = getFittingFontSize(regFont, signerOrg, 28, 580);
-    const signerOrgPath = textToSvgPath(regFont, signerOrg, cx, 2258, signerOrgSize, "#555555");
+    const signerOrgPath = textToSvgPath(regFont, signerOrg, cx, 2330, signerOrgSize, "#555555");
 
     return baseSvg
+      .replace(
+        '<rect x="2175" y="2148" width="600" height="2" fill="#161d26"/>',
+        '<rect x="2175" y="2220" width="600" height="2" fill="#161d26"/>'
+      )
       .replace("<!-- PROUDLY_PRESENT_PLACEHOLDER -->", line1Path)
       .replace("<!-- PARTICIPANT_NAME_PLACEHOLDER -->", namePath)
       .replace(
@@ -389,7 +416,7 @@ export async function generateCertificateSvg(
       )
       .replace(
         "<!-- SIGNER_NAME_PLACEHOLDER -->",
-        `${isRunnerUp ? `${detailsPath}${datePath}` : ""}${sigImgXml}`
+        `${detailsPath}${datePath}${sigImgXml}`
       )
       .replace("<!-- SIGNER_TITLE_PLACEHOLDER -->", `${signerTitlePath}${signerOrgPath}`)
       .replace("<!-- QR_AND_META_PLACEHOLDER -->", qrAndMetaXml);
@@ -429,12 +456,11 @@ export async function generateCertificateSvg(
     ? `<image href="${input.qrDataUri}" x="220" y="2010" width="230" height="230" />`
     : `<rect x="220" y="2010" width="230" height="230" fill="#F4F4F6" stroke="#DEDEE3" stroke-width="2" rx="8"/><text x="335" y="2135" text-anchor="middle" font-family="monospace" font-size="24" fill="#888">[QR]</text>`;
 
-  // NOTE: Both the Certificate ID and the Verification URL are intentionally NOT rendered
-  // into the SVG path raster here. They are overlaid as real, selectable PDF text
-  // by the pdf-generator. This ensures both lines are 100% selectable and copy-pasteable.
   const qrAndMetaXml = `
     <g id="dynamic-verification-meta">
       ${qrImageXml}
+      ${certIdPath}
+      ${verifyUrlPath}
     </g>
   `;
 

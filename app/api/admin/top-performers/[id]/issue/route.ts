@@ -127,6 +127,7 @@ export async function POST(
       eventTitle: event.name,
       eventDate: event.event_date,
       awardTitle,
+      verificationUrl,
     });
 
     if (!pdfResult.success || !pdfResult.pdfBuffer) {

@@ -248,6 +248,7 @@ export async function POST(request: NextRequest) {
       eventTitle: event.name,
       eventDate: event.event_date,
       certificateId,
+      verificationUrl,
     });
 
     if (!pdfResult.success || !pdfResult.pdfBuffer) {

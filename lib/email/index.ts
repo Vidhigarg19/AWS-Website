@@ -8,10 +8,12 @@ import {
   generateApplicationEmailText,
 } from "./templates/application-confirmation";
 import {
+  CertificateSocialPlatform,
   CertificateEmailData,
   generateCertificateEmailHtml,
   generateCertificateEmailText,
 } from "./templates/certificate-delivery";
+import { getAwardTitle } from "../certificates/award-title";
 
 export interface SendEmailResult {
   success: boolean;
@@ -29,14 +31,6 @@ type EmailAttachment = {
   content: Buffer;
   cid?: string;
 };
-
-const CERTIFICATE_BANNER_CID = "certificate-banner";
-const CERTIFICATE_SOCIAL_ICONS = [
-  { platform: "linkedin", filename: "linkedin.png", cid: "certificate-social-linkedin" },
-  { platform: "instagram", filename: "instagram.png", cid: "certificate-social-instagram" },
-  { platform: "whatsapp", filename: "whatsapp.png", cid: "certificate-social-whatsapp" },
-  { platform: "meetup", filename: "meetup.png", cid: "certificate-social-meetup" },
-] as const;
 
 function withDisplayName(address: string, displayName?: string): string {
   if (!displayName) {
@@ -80,71 +74,49 @@ export async function sendApplicationConfirmationEmail(
 }
 
 /**
- * Sends an official certificate delivery email with attached PDF.
+ * Sends an official certificate delivery email.
  * Meets Phase 8 requirement:
  * - Student name
  * - Event name
  * - Thank-you message
- * - Certificate PDF attachment
  * - Verification information
  * - AWS SBG branding
  */
 export async function sendCertificateEmail(
   data: SendCertificateEmailParams
 ): Promise<SendEmailResult> {
-  const { to, certificateId, pdfBuffer } = data;
-  const subject = data.awardTitle
-    ? `Congratulations on Your Achievement | ${data.eventName} – AWS SBG`
-    : `Your Certificate of Participation — AWS Student Builder Group (${data.eventName})`;
-  const bannerPath = path.join(process.cwd(), "public", "email", "banner.png");
-  const bannerBuffer = existsSync(bannerPath) ? readFileSync(bannerPath) : undefined;
-  const socialIcons = CERTIFICATE_SOCIAL_ICONS.map((icon) => {
-    const iconPath = path.join(process.cwd(), "public", "email", "icons", icon.filename);
-    return {
-      ...icon,
-      buffer: existsSync(iconPath) ? readFileSync(iconPath) : undefined,
-    };
-  });
-  const html = generateCertificateEmailHtml(data, {
-    bannerSrc: bannerBuffer ? `cid:${CERTIFICATE_BANNER_CID}` : null,
-    socialIconSrcs: Object.fromEntries(
-      socialIcons.map(({ platform, cid, buffer }) => [
-        platform,
-        buffer ? `cid:${cid}` : null,
-      ])
-    ),
-  });
-  const text = generateCertificateEmailText(data);
-
-  const attachments: EmailAttachment[] = [
-    {
-      filename: `${certificateId}.pdf`,
-      content: pdfBuffer,
-    },
+  const { to } = data;
+  const subject = getAwardTitle(data.awardTitle)
+    ? `Congratulations on Your Achievement | ${data.eventName}`
+    : `Your Certificate of Participation — ${data.eventName}`;
+  const iconDefinitions: { platform: CertificateSocialPlatform; filename: string }[] = [
+    { platform: "whatsapp", filename: "whatsapp.png" },
+    { platform: "instagram", filename: "instagram.png" },
+    { platform: "meetup", filename: "meetup.png" },
+    { platform: "linkedin", filename: "linkedin.png" },
   ];
-  if (bannerBuffer) {
-    attachments.push({
-      filename: "banner.png",
-      content: bannerBuffer,
-      cid: CERTIFICATE_BANNER_CID,
-    });
-  }
-  for (const icon of socialIcons) {
-    if (icon.buffer) {
-      attachments.push({
-        filename: icon.filename,
-        content: icon.buffer,
-        cid: icon.cid,
-      });
+  const attachments: EmailAttachment[] = [];
+  const iconSources: Partial<Record<CertificateSocialPlatform, string | null>> = {};
+  for (const { platform, filename } of iconDefinitions) {
+    const iconPath = path.join(process.cwd(), "public", "email", "icons", filename);
+    const cid = `certificate-icon-${platform}`;
+    if (existsSync(iconPath)) {
+      attachments.push({ filename, content: readFileSync(iconPath), cid });
+      iconSources[platform] = `cid:${cid}`;
+    } else {
+      iconSources[platform] = null;
     }
   }
+
+  const html = generateCertificateEmailHtml(data, { iconSources });
+  const text = generateCertificateEmailText(data);
 
   return sendGenericEmail({
     to,
     subject,
     html,
     text,
-    attachments,
+    ...(attachments.length > 0 ? { attachments } : {}),
     fromName: "AWS Student Builder Group",
   });
 }

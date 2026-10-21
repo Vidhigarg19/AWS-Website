@@ -34,6 +34,7 @@ import {
   buildCertIdText,
   buildVerifyUrlText,
 } from "./svg-generator";
+import { getAwardTitle } from "./award-title";
 
 // ── IBM Plex Mono Bold Font Cache & Fontkit Patch ─────────────
 let cachedFontBytes: Buffer | null = null;
@@ -151,7 +152,10 @@ function formatDate(isoDate: string): string {
  * @returns Generation result with certificateId and downloadable pdfBuffer
  */
 export async function generateCertificatePdf(
-  input: CertificateGenerationInput & { awardTitle?: string }
+  input: CertificateGenerationInput & {
+    awardTitle?: string;
+    verificationUrl?: string;
+  }
 ): Promise<CertificateGenerationResult> {
   try {
     // 1. Use pre-generated Certificate ID or generate a new one
@@ -159,7 +163,8 @@ export async function generateCertificatePdf(
       input.certificateId?.trim() || (await generateCertificateId());
 
     // 2. Generate QR code pointing to public verification page
-    const verificationUrl = getVerificationUrl(certificateId);
+    const verificationUrl =
+      input.verificationUrl || getVerificationUrl(certificateId);
     const qrDataUri = await QRCode.toDataURL(verificationUrl, {
       margin: 1,
       width: 300,
@@ -168,7 +173,7 @@ export async function generateCertificatePdf(
 
     // 3. Format event date
     const formattedDate = formatDate(input.eventDate);
-    const awardTitle = input.awardTitle?.trim();
+    const awardTitle = getAwardTitle(input.awardTitle);
 
     // 4. Generate dynamic SVG certificate
     //    NOTE: the verification URL text is intentionally excluded from the SVG
@@ -245,9 +250,9 @@ export async function generateCertificatePdf(
     });
 
     // 2. Draw Verify Certificate text (selectable)
-    const verifyUrlText = buildVerifyUrlText(certificateId);
+    const verifyUrlText = buildVerifyUrlText(certificateId, verificationUrl);
     const labelText = "Verify Certificate: ";
-    const urlOnlyText = `https://awstulas.org/verify/${certificateId}`;
+    const urlOnlyText = verificationUrl;
     const verifyFontSize = 24 * scaleX; // 24 * 0.24 = 5.76 pt
     const verifyX = svgToPdfX(VERIFY_URL_SVG_POSITION.x);
     const verifyY = svgToPdfY(VERIFY_URL_SVG_POSITION.y);

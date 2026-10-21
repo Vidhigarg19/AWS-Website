@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isValidCertificateIdFormat } from "@/lib/certificates/id-generator";
+import { getAwardTitle } from "@/lib/certificates/award-title";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type {
   CertificateVerificationResponse,
@@ -108,8 +109,9 @@ export async function GET(
       : cert.participant;
     let course = part?.course || "N/A";
     let rollNo = part?.roll_no || "N/A";
+    const awardTitle = getAwardTitle(cert.award_title);
 
-    if (cert.award_title) {
+    if (awardTitle) {
       const { data: topPerformer, error: topPerformerError } = await supabase
         .from("top_performers")
         .select("course, roll_no")
@@ -149,7 +151,7 @@ export async function GET(
           eventDate: cert.event_date_snapshot,
           issueDate: cert.issue_date,
           issuedBy: "AWS Student Builder Group • Tulas University",
-          ...(cert.award_title ? { awardTitle: cert.award_title } : {}),
+          ...(awardTitle ? { awardTitle } : {}),
         },
         verifiedAt: new Date().toISOString(),
       } satisfies CertificateVerificationResponse,

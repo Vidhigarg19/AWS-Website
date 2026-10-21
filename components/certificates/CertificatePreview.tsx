@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import {
+  getAwardTitle,
+  getCertificateAwardLayout,
+} from "@/lib/certificates/award-title";
 import { generateQRCodeDataUrl } from "@/lib/certificates/qr-generator";
 
 interface CertificatePreviewProps {
@@ -36,6 +40,7 @@ export function CertificatePreview({
   certificateId,
   awardTitle,
 }: CertificatePreviewProps) {
+  const normalizedAwardTitle = getAwardTitle(awardTitle);
   const [baseSvg, setBaseSvg] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [qr, setQr] = useState<{ certificateId: string; dataUrl: string } | null>(null);
@@ -45,7 +50,7 @@ export function CertificatePreview({
   useEffect(() => {
     let isCurrent = true;
     setIsLoading(true);
-    const templateName = awardTitle
+    const templateName = normalizedAwardTitle
       ? "Certificate-of-Excellence-Template.svg"
       : "Certificate-Template.svg";
 
@@ -71,7 +76,7 @@ export function CertificatePreview({
     return () => {
       isCurrent = false;
     };
-  }, [awardTitle]);
+  }, [normalizedAwardTitle]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -160,26 +165,35 @@ export function CertificatePreview({
       </style>
     `;
 
-    if (awardTitle) {
+    if (normalizedAwardTitle) {
+      const { rankText, contextText, isRunnerUp } =
+        getCertificateAwardLayout(normalizedAwardTitle);
       const nameSize = getFittingFontSize(name.length, 96, 20);
-      const rankSize = getFittingFontSize(awardTitle.length, 112, 13);
-      const rankWidth = awardTitle.length * rankSize * 0.602;
+      const rankSize = getFittingFontSize(
+        rankText.length,
+        112,
+        850 / (112 * 0.602)
+      );
+      const rankWidth = rankText.length * rankSize * 0.602;
       const eventSize = Math.min(62, Math.floor(1240 / (event.length * 0.602)));
       const dateLine = `on ${date}`;
-      const dateSize = getFittingFontSize(dateLine.length, 34, 57);
-      const datePrefixWidth = "on ".length * dateSize * 0.602;
-      const dateLineWidth = dateLine.length * dateSize * 0.602;
-      const rankLineY = 1682 - rankSize * 0.38;
+      const dateSize = getFittingFontSize(dateLine.length, 32, 57);
+      const rankBaseline = isRunnerUp ? 1660 : 1682;
+      const rankLineY = rankBaseline - rankSize * 0.38;
+      const eventPrefixBaseline = isRunnerUp ? 1738 : 1777;
+      const eventBaseline = isRunnerUp ? 1818 : 1857;
+      const runnerUpDetailsXml = isRunnerUp
+        ? `<text x="${cx}" y="1898" text-anchor="middle" font-size="28" font-weight="400" fill="#444444">conducted by AWS Student Builder Group at Tulas University</text><text x="${cx}" y="1958" text-anchor="middle" font-size="${dateSize}" font-weight="700" fill="#444444">${escapeXml(dateLine)}</text>`
+        : "";
       const excellenceTextXml = `
         <text x="${cx}" y="1347" text-anchor="middle" font-size="34" font-weight="400" fill="#555555">This certificate is proudly presented to</text>
         <text x="${cx}" y="1497" text-anchor="middle" font-size="${nameSize}" font-weight="700" fill="#161D26">${escapeXml(name)}</text>
         <text x="${cx}" y="1562" text-anchor="middle" font-size="32" font-weight="400" fill="#555555">for securing</text>
         <rect x="${cx - rankWidth / 2 - 195}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
         <rect x="${cx + rankWidth / 2 + 55}" y="${rankLineY}" width="140" height="5" fill="#FF9900"/>
-        <text x="${cx}" y="1682" text-anchor="middle" font-size="${rankSize}" font-weight="700" fill="#FF9900">${escapeXml(awardTitle)}</text>
-        <text x="${cx}" y="1777" text-anchor="middle" font-size="54" font-weight="400" fill="#555555">in the</text>
-        <text x="${cx}" y="1857" text-anchor="middle" font-size="${eventSize}" font-weight="700" fill="#FF9900">${escapeXml(event)}</text>
-        <text x="${cx}" y="1952" text-anchor="middle" font-size="28" font-weight="400" fill="#444444">conducted by AWS Student Builder Group at Tulas University</text>
+        <text x="${cx}" y="${rankBaseline}" text-anchor="middle" font-size="${rankSize}" font-weight="700" fill="#FF9900">${escapeXml(rankText)}</text>
+        <text x="${cx}" y="${eventPrefixBaseline}" text-anchor="middle" font-size="54" font-weight="400" fill="#555555">${escapeXml(contextText)}</text>
+        <text x="${cx}" y="${eventBaseline}" text-anchor="middle" font-size="${eventSize}" font-weight="700" fill="#FF9900">${escapeXml(event)}</text>
       `;
       const qrAndMetaXml = `
         <g id="dynamic-verification-meta">
@@ -190,7 +204,7 @@ export function CertificatePreview({
         <text x="220" y="2330" font-size="24" font-weight="700" fill="#161D26">Verify Certificate: https://awstulas.org/verify/${escapeXml(certId)}</text>
         </g>
       `;
-      const signerSigXml = `<image href="/Lingwal_Sign.png" x="2295" y="2005" width="360" height="130" preserveAspectRatio="xMidYMid meet" />`;
+      const signerSigXml = `${runnerUpDetailsXml}<image href="/Lingwal_Sign.png" x="2295" y="2005" width="360" height="130" preserveAspectRatio="xMidYMid meet" />`;
       const signerTitlesXml = `<text x="${cx}" y="2210" text-anchor="middle" font-size="28" font-weight="400" fill="#555555">${escapeXml(title)}</text><text x="${cx}" y="2258" text-anchor="middle" font-size="28" font-weight="400" fill="#555555">AWS Student Builder Group</text>`;
 
       return baseSvg
@@ -227,7 +241,7 @@ export function CertificatePreview({
     signerTitle,
     certId,
     qrDataUrl,
-    awardTitle,
+    normalizedAwardTitle,
   ]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);

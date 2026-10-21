@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { isValidCertificateIdFormat } from "@/lib/certificates/id-generator";
+import { getAwardTitle } from "@/lib/certificates/award-title";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { CertificatePreview } from "@/components/certificates/CertificatePreview";
 import {
@@ -101,7 +102,7 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
           rollNo,
           eventName: data.event_name_snapshot,
           eventDate: data.event_date_snapshot,
-          awardTitle: data.award_title || null,
+          awardTitle: getAwardTitle(data.award_title) || null,
           issueDate: data.issue_date,
           issuedBy: "AWS Student Builder Group • Tulas University",
           pdfUrl: data.pdf_url || `/api/certificates/${data.certificate_id}`,

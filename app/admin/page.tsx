@@ -11,6 +11,7 @@ import type { DbEvent, DbPortalConfig, AdminParticipantRow, DbTeamMember } from 
 import { formatFullName, cn } from "@/lib/utils";
 import { getAwardTitle } from "@/lib/certificates/award-title";
 import { DatePicker } from "@/components/ui/date-picker";
+import { TopPerformerImportDialog } from "@/components/features/TopPerformerImportDialog";
 import {
   ArrowRight,
   Calendar,
@@ -3024,6 +3025,13 @@ function AdminPageContent() {
                       <span className="block text-[10px] font-mono uppercase tracking-wider text-[#71717A] mb-1">Event Date</span>
                       <span className="text-sm font-medium text-white">{formatDate(currentViewEvent.event_date)}</span>
                     </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <TopPerformerImportDialog
+                      existingEmails={topPerformers.map((performer) => performer.email)}
+                      onImported={fetchTopPerformers}
+                    />
                   </div>
 
                   <form onSubmit={handleAddTopPerformer} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">

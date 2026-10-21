@@ -31,6 +31,12 @@ type EmailAttachment = {
 };
 
 const CERTIFICATE_BANNER_CID = "certificate-banner";
+const CERTIFICATE_SOCIAL_ICONS = [
+  { platform: "linkedin", filename: "linkedin.png", cid: "certificate-social-linkedin" },
+  { platform: "instagram", filename: "instagram.png", cid: "certificate-social-instagram" },
+  { platform: "whatsapp", filename: "whatsapp.png", cid: "certificate-social-whatsapp" },
+  { platform: "meetup", filename: "meetup.png", cid: "certificate-social-meetup" },
+] as const;
 
 function withDisplayName(address: string, displayName?: string): string {
   if (!displayName) {
@@ -92,8 +98,21 @@ export async function sendCertificateEmail(
     : `Your Certificate of Participation — AWS Student Builder Group (${data.eventName})`;
   const bannerPath = path.join(process.cwd(), "public", "email", "banner.png");
   const bannerBuffer = existsSync(bannerPath) ? readFileSync(bannerPath) : undefined;
+  const socialIcons = CERTIFICATE_SOCIAL_ICONS.map((icon) => {
+    const iconPath = path.join(process.cwd(), "public", "email", "icons", icon.filename);
+    return {
+      ...icon,
+      buffer: existsSync(iconPath) ? readFileSync(iconPath) : undefined,
+    };
+  });
   const html = generateCertificateEmailHtml(data, {
     bannerSrc: bannerBuffer ? `cid:${CERTIFICATE_BANNER_CID}` : null,
+    socialIconSrcs: Object.fromEntries(
+      socialIcons.map(({ platform, cid, buffer }) => [
+        platform,
+        buffer ? `cid:${cid}` : null,
+      ])
+    ),
   });
   const text = generateCertificateEmailText(data);
 
@@ -109,6 +128,15 @@ export async function sendCertificateEmail(
       content: bannerBuffer,
       cid: CERTIFICATE_BANNER_CID,
     });
+  }
+  for (const icon of socialIcons) {
+    if (icon.buffer) {
+      attachments.push({
+        filename: icon.filename,
+        content: icon.buffer,
+        cid: icon.cid,
+      });
+    }
   }
 
   return sendGenericEmail({

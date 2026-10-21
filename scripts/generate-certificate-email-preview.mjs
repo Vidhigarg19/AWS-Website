@@ -29,6 +29,12 @@ const commonData = {
 };
 const bannerPath = path.join(root, "public", "email", "banner.png");
 const bannerSrc = fs.existsSync(bannerPath) ? "../public/email/banner.png" : null;
+const socialIconSrcs = {
+  linkedin: "../public/email/icons/linkedin.png",
+  instagram: "../public/email/icons/instagram.png",
+  whatsapp: "../public/email/icons/whatsapp.png",
+  meetup: "../public/email/icons/meetup.png",
+};
 const previews = [
   {
     filename: "certificate-participation-email.html",
@@ -45,7 +51,7 @@ const outputDir = path.join(root, "tmp");
 fs.mkdirSync(outputDir, { recursive: true });
 
 for (const preview of previews) {
-  const html = generateCertificateEmailHtml(preview.data, { bannerSrc });
+  const html = generateCertificateEmailHtml(preview.data, { bannerSrc, socialIconSrcs });
   const text = generateCertificateEmailText(preview.data);
   fs.writeFileSync(path.join(outputDir, preview.filename), html, "utf8");
   fs.writeFileSync(

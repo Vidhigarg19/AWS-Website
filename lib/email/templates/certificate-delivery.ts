@@ -8,6 +8,46 @@ export interface CertificateEmailData {
   awardTitle?: string;
 }
 
+type SocialPlatform = "linkedin" | "instagram" | "whatsapp" | "meetup";
+
+const SOCIAL_LINKS: {
+  platform: SocialPlatform;
+  label: string;
+  url: string;
+}[] = [
+  {
+    platform: "linkedin",
+    label: "LinkedIn",
+    url: "https://www.linkedin.com/company/aws-tulas/",
+  },
+  {
+    platform: "instagram",
+    label: "Instagram",
+    url: "https://instagram.com/aws.sbgtulas",
+  },
+  {
+    platform: "whatsapp",
+    label: "WhatsApp",
+    url: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4",
+  },
+  {
+    platform: "meetup",
+    label: "Meetup",
+    url: "https://www.meetup.com/aws-sbg-at-tulas-university/",
+  },
+];
+
+const SOCIAL_ICON_CIDS: Record<SocialPlatform, string> = {
+  linkedin: "certificate-social-linkedin",
+  instagram: "certificate-social-instagram",
+  whatsapp: "certificate-social-whatsapp",
+  meetup: "certificate-social-meetup",
+};
+
+const LINKEDIN_URL = "https://www.linkedin.com/company/aws-tulas/";
+const SHARE_MESSAGE =
+  "Share your achievement on LinkedIn and don't forget to tag AWS Student Builder Group at Tulas University.";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -53,7 +93,10 @@ function generateCertificateMessageText(data: CertificateEmailData): string {
 
 export function generateCertificateEmailHtml(
   data: CertificateEmailData,
-  options: { bannerSrc?: string | null } = {}
+  options: {
+    bannerSrc?: string | null;
+    socialIconSrcs?: Partial<Record<SocialPlatform, string | null>>;
+  } = {}
 ): string {
   const safeRecipientName = escapeHtml(data.recipientName);
   const safeVerificationUrl = escapeVerificationHref(data.verificationUrl);
@@ -62,6 +105,17 @@ export function generateCertificateEmailHtml(
   const banner = bannerSrc
     ? `<tr><td style="padding:0;"><img src="${escapeHtml(bannerSrc)}" width="600" alt="AWS Student Builder Group" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:10px;"></td></tr>`
     : "";
+  const socialLinks = SOCIAL_LINKS.map(({ platform, label, url }) => {
+    const iconSrc =
+      options.socialIconSrcs?.[platform] === undefined
+        ? `cid:${SOCIAL_ICON_CIDS[platform]}`
+        : options.socialIconSrcs[platform];
+    const safeUrl = escapeVerificationHref(url);
+    const content = iconSrc
+      ? `<img src="${escapeHtml(iconSrc)}" width="32" height="32" alt="${label}" style="display:block;width:32px;height:32px;border:0;">`
+      : `<span style="font-size:12px;line-height:32px;color:#5B21B6;text-decoration:underline;">${label}</span>`;
+    return `<td align="center" valign="middle" style="padding:0 8px;"><a href="${safeUrl}" aria-label="${label}" style="display:inline-block;text-decoration:none;">${content}</a></td>`;
+  }).join("");
   const eventParagraph = data.awardTitle
     ? "Your dedication, knowledge, and enthusiasm truly made you stand out. We are delighted to recognize your achievement and hope you continue learning, building, and pushing your limits."
     : "Your participation, curiosity, and enthusiasm truly made the event special. We appreciate your involvement and hope you continue learning, building, and growing with our community.";
@@ -99,7 +153,11 @@ export function generateCertificateEmailHtml(
           <tr>
             <td style="padding:0 30px 22px;background-color:#FFFFFF;text-align:center;">
               <div style="height:1px;background-color:#F3EEFF;font-size:0;line-height:0;">&nbsp;</div>
-              <p style="margin:15px 0 0;font-size:11px;line-height:1.5;letter-spacing:1.5px;color:#A0A0A0;">Learn. Build. Innovate. Together.</p>
+              <p style="margin:15px 0 12px;font-size:12px;line-height:1.6;color:#555566;">Share your achievement on <a href="${escapeVerificationHref(LINKEDIN_URL)}" style="color:#5B21B6;text-decoration:underline;">LinkedIn</a> and don't forget to tag <strong style="color:#1F1F2E;">AWS Student Builder Group at Tulas University</strong>.</p>
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 12px;border-collapse:collapse;">
+                <tr>${socialLinks}</tr>
+              </table>
+              <p style="margin:0;font-size:11px;line-height:1.5;letter-spacing:1.5px;color:#A0A0A0;">Learn. Build. Innovate. Together.</p>
             </td>
           </tr>
         </table>
@@ -131,6 +189,9 @@ export function generateCertificateEmailText(data: CertificateEmailData): string
     "Warm Regards,",
     "Team AWS Student Builder Group",
     "Tulas University, Dehradun",
+    "",
+    SHARE_MESSAGE,
+    ...SOCIAL_LINKS.map(({ label, url }) => `${label}: ${url}`),
     "",
     "Learn. Build. Innovate. Together.",
   ].join("\n");

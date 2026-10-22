@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { getEventCovers } from "@/lib/media/public-data";
 import type { ApiResponse, DbEvent } from "@/types/certificate";
 
 /**
@@ -29,6 +30,7 @@ const DEV_PREVIEW_EVENTS: DbEvent[] = [
     speaker_name: "AWS Student Builder Group",
     attendance_open: false,
     event_type: "Workshop",
+    cover_url: null,
   },
   {
     id: "aws-serverless-masterclass",
@@ -40,6 +42,7 @@ const DEV_PREVIEW_EVENTS: DbEvent[] = [
     speaker_name: "AWS Community Mentors",
     attendance_open: false,
     event_type: "Workshop",
+    cover_url: null,
   },
   {
     id: "aws-cloud-practitioner-sprint",
@@ -51,6 +54,7 @@ const DEV_PREVIEW_EVENTS: DbEvent[] = [
     speaker_name: "AWS Student Builder Group",
     attendance_open: true,
     event_type: "Workshop",
+    cover_url: null,
   },
 ];
 
@@ -125,8 +129,17 @@ export async function GET(): Promise<NextResponse<ApiResponse<DbEvent[]>>> {
       );
     }
 
+    const rows = data ?? [];
+    // Media Portal covers: best effort. A storage/lookup problem must not break
+    // the events list, so getEventCovers() fails soft (empty map) on its own.
+    const covers = await getEventCovers(rows.map((r) => r.id));
+    const withCovers: DbEvent[] = rows.map((r) => ({
+      ...r,
+      cover_url: covers.get(r.id)?.url ?? null,
+    }));
+
     return NextResponse.json(
-      { success: true, data: data ?? [] },
+      { success: true, data: withCovers },
       {
         headers: {
           "Cache-Control": "public, s-maxage=10, stale-while-revalidate=60",

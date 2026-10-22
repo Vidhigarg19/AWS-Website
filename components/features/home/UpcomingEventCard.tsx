@@ -108,7 +108,8 @@ export default function UpcomingEventCard() {
             const mappedPast = past.slice(0, 3).map((item, idx) => ({
               title: item.name,
               date: parseEventDate(item.event_date ?? "").formatted,
-              image: PAST_EVENT_IMAGES[idx % PAST_EVENT_IMAGES.length],
+              // Prefer a real cover uploaded via the Media Portal; fall back to the preset.
+              image: item.cover_url ?? PAST_EVENT_IMAGES[idx % PAST_EVENT_IMAGES.length],
             }));
             setPastEvents(mappedPast);
           } else {

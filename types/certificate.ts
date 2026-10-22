@@ -30,6 +30,8 @@ export interface DbEvent {
   poster_url?: string | null;
   photos?: string[] | null;
   event_type?: string | null;       // Category: "Workshop" | "Hackathon" | "Quiz" | "Event" | custom
+  /** CDN URL of the event's cover photo (Media Portal), or null if none has been uploaded. */
+  cover_url: string | null;
 }
 
 export interface DbAttendance {

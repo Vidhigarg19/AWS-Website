@@ -7,6 +7,10 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
 import { Spotlight } from "@/components/ui/spotlight";
+import Link from "next/link";
+import { Camera, Film } from "lucide-react";
+import { formatEventDate } from "@/lib/media/format";
+import type { GalleryGroup } from "@/lib/media/public-view";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -43,7 +47,7 @@ const FLOWER_OVERLAYS = [
   },
 ];
 
-export function Gallery() {
+export function Gallery({ groups }: { groups: GalleryGroup[] }) {
   const containerRef = React.useRef<HTMLElement>(null);
 
   useGSAP(() => {
@@ -174,20 +178,67 @@ export function Gallery() {
           </p>
         </div>
 
-        <div className="gallery-grid-container mt-14 grid grid-cols-1 gap-3 sm:grid-cols-3 relative z-10">
-          {PLACEHOLDERS.map((item, i) => (
-            <div
-              key={i}
-              className={`gallery-item group relative overflow-hidden rounded-xl border border-border bg-bg/80 backdrop-blur-sm transition-colors hover:border-border/80 ${item.span}`}
-            >
-              <div className="flex aspect-[4/3] w-full items-center justify-center">
-                <p className="text-[15px] font-medium tracking-wide text-muted">
-                  Coming Soon...
-                </p>
+        {groups.length === 0 ? (
+          <div className="gallery-grid-container mt-14 grid grid-cols-1 gap-3 sm:grid-cols-3 relative z-10">
+            {PLACEHOLDERS.map((item, i) => (
+              <div
+                key={i}
+                className={`gallery-item group relative overflow-hidden rounded-xl border border-border bg-bg/80 backdrop-blur-sm transition-colors hover:border-border/80 ${item.span}`}
+              >
+                <div className="flex aspect-[4/3] w-full items-center justify-center">
+                  <p className="text-[15px] font-medium tracking-wide text-muted">
+                    Coming Soon...
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-14 space-y-4 relative z-10">
+            {groups.map((group) => {
+              const cover = group.cover ?? group.items[0] ?? null;
+              const photoCount = group.items.filter((i) => i.kind === "image").length + (group.cover?.kind === "image" ? 1 : 0);
+              const videoCount = group.items.filter((i) => i.kind === "video").length + (group.cover?.kind === "video" ? 1 : 0);
+              return (
+                <Link
+                  key={group.event.id}
+                  href={`/gallery/${group.event.id}`}
+                  className="gallery-item group relative flex items-center gap-4 overflow-hidden rounded-xl border border-border bg-bg/80 p-3 backdrop-blur-sm transition-colors hover:border-primary/40 sm:p-4"
+                >
+                  <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-black/30 sm:h-24 sm:w-36">
+                    {cover && (
+                      <Image
+                        src={cover.thumbUrl}
+                        alt=""
+                        fill
+                        sizes="144px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-display text-[17px] font-semibold text-text-primary group-hover:text-primary-light sm:text-[19px]">
+                      {group.event.name}
+                    </h3>
+                    <p className="mt-1 text-[13px] text-text-secondary">{formatEventDate(group.event.event_date)}</p>
+                    <div className="mt-2 flex items-center gap-3 text-[12px] text-muted">
+                      {photoCount > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          <Camera className="h-3.5 w-3.5" aria-hidden="true" /> {photoCount}
+                        </span>
+                      )}
+                      {videoCount > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          <Film className="h-3.5 w-3.5" aria-hidden="true" /> {videoCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

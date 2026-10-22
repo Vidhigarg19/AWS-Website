@@ -56,7 +56,7 @@ export default async function EventMediaPage({
   // Unfinished (pending) and failed uploads are noise here: show real items only.
   const mediaRes = await db
     .from("media_items")
-    .select("id, uploaded_by, kind, purpose, status, size_bytes, created_at")
+    .select("id, uploaded_by, kind, purpose, status, size_bytes, caption, created_at")
     .eq("event_id", event.id)
     .is("deleted_at", null)
     .in("status", ["processing", "ready", "hidden"])
@@ -66,14 +66,18 @@ export default async function EventMediaPage({
   const loadFailed = !!mediaRes.error;
   if (mediaRes.error) console.error("[media] items load error:", mediaRes.error.message);
 
+  // Mirrors lib/media/access.ts: admins manage anything, members only their own.
+  const isAdmin = session.role === "super_admin" || session.role === "admin";
   const items: MediaListItem[] = (mediaRes.data ?? []).map((r) => ({
     id: r.id as string,
     kind: r.kind as "image" | "video",
     purpose: r.purpose as "cover" | "gallery",
     status: r.status as string,
     size_bytes: Number(r.size_bytes),
+    caption: (r.caption as string | null) ?? null,
     created_at: r.created_at as string,
     mine: r.uploaded_by === session.user.id,
+    canManage: isAdmin || r.uploaded_by === session.user.id,
   }));
 
   return (

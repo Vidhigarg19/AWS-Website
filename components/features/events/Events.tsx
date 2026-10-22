@@ -29,6 +29,7 @@ import {
   TimelineLine,
 } from "@/components/ui/timeline";
 import { SuggestEventSection } from "@/components/features/events/SuggestEventSection";
+import Image from "next/image";
 import type { ApiResponse, DbEvent } from "@/types/certificate";
 import { cn } from "@/lib/utils";
 import gsap from "gsap";
@@ -59,6 +60,7 @@ type Event = {
   dotColor: string;
   description: string;
   status: EventStatus;
+  coverUrl: string | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -182,6 +184,20 @@ function EventCard({ event, className }: { event: Event; className?: string }) {
       {/* Top ambient glow for Up Next event */}
       {isCurrent && (
         <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 h-32 w-64 rounded-full bg-primary/20 blur-2xl" />
+      )}
+
+      {/* Cover photo uploaded via the Media Portal, when one exists */}
+      {event.coverUrl && (
+        <div className="relative aspect-[16/9] w-full overflow-hidden border-b border-white/[0.06]">
+          <Image
+            src={event.coverUrl}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg-card/90 via-transparent to-transparent" />
+        </div>
       )}
 
       <div className="p-5 sm:p-6 flex flex-col justify-between h-full flex-1">
@@ -364,6 +380,7 @@ export function Events() {
         today.setHours(0, 0, 0, 0);
 
         const firstFutureRow = rawEvents.find((row: DbEvent) => {
+          if (!row.event_date) return false;
           const d = new Date(row.event_date + "T00:00:00");
           return !isNaN(d.getTime()) && d >= today;
         });
@@ -402,6 +419,7 @@ export function Events() {
             dotColor: status === "past" ? "text-muted" : "text-primary-light",
             description: row.description ?? "",
             status,
+            coverUrl: row.cover_url,
           };
         });
 

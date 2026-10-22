@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.supabase.co",
       },
+      // Media Portal: event photos/videos served from the CloudFront CDN
+      // (infra/media-storage.yaml). Covers the default *.cloudfront.net
+      // domain; add your custom CDN domain here too if you set one up.
+      {
+        protocol: "https",
+        hostname: "*.cloudfront.net",
+      },
     ],
   },
   

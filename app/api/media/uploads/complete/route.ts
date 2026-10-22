@@ -13,6 +13,7 @@
 // Safe to call again for the same ids (idempotent).
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/require-role";
 import { MEDIA_PORTAL_ROLES } from "@/lib/auth/roles";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -81,6 +82,9 @@ export async function POST(request: NextRequest) {
   if (results.every((r) => r.state === "error")) {
     return fail("Failed to complete the upload.", 500);
   }
+
+  // A video can go live here, so refresh the cached public gallery.
+  if (results.some((r) => r.state === "accepted")) revalidatePath("/gallery", "layout");
 
   return NextResponse.json(
     { success: true, data: { results } } satisfies ApiResponse,

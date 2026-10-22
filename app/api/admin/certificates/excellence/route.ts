@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { generateCertificateId } from "@/lib/certificates/id-generator";
+import { getAwardTitle } from "@/lib/certificates/award-title";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
 import { getVerificationUrl } from "@/lib/certificates/qr-generator";
 import type { ApiResponse } from "@/types/certificate";
@@ -15,21 +16,19 @@ import { cleanFullName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_AWARDS = [
-  "1st Position",
-  "2nd Position",
-  "3rd Position",
-] as const;
-
-type AwardTitle = (typeof ALLOWED_AWARDS)[number];
+const ALLOWED_AWARDS = new Set([
+  getAwardTitle(1),
+  getAwardTitle(2),
+  getAwardTitle(3),
+]);
 
 interface IssueExcellenceCertificateBody {
   attendanceId?: unknown;
   awardTitle?: unknown;
 }
 
-function isAwardTitle(value: unknown): value is AwardTitle {
-  return typeof value === "string" && ALLOWED_AWARDS.some((title) => title === value);
+function isAwardTitle(value: unknown): value is string {
+  return typeof value === "string" && ALLOWED_AWARDS.has(getAwardTitle(value) ?? "");
 }
 
 export async function POST(request: NextRequest) {
@@ -65,14 +64,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Award title must be 1st Position, 2nd Position, or 3rd Position.",
+          error: `Award title must be one of: ${[...ALLOWED_AWARDS].join(", ")}.`,
         } satisfies ApiResponse,
         { status: 400 }
       );
     }
 
     const attendanceId = body.attendanceId.trim();
-    const awardTitle = body.awardTitle;
+    const awardTitle = getAwardTitle(body.awardTitle);
     const supabase = getAdminClient();
 
     if (!supabase) {
@@ -183,6 +182,7 @@ export async function POST(request: NextRequest) {
       eventDate: event.event_date,
       certificateId,
       awardTitle,
+      verificationUrl,
     });
 
     if (!pdfResult.success || !pdfResult.pdfBuffer) {

@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
         eventTitle: cert.event_name_snapshot,
         eventDate: cert.event_date_snapshot,
         awardTitle: cert.award_title || undefined,
+        verificationUrl: cert.verification_url || undefined,
       });
 
       if (!pdfResult.success || !pdfResult.pdfBuffer) {
@@ -226,6 +227,7 @@ export async function POST(request: NextRequest) {
             eventTitle: cert.event_name_snapshot,
             eventDate: cert.event_date_snapshot,
             awardTitle: cert.award_title || undefined,
+            verificationUrl: cert.verification_url || undefined,
           });
 
           if (!pdfResult.success || !pdfResult.pdfBuffer) {

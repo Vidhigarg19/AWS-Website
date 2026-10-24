@@ -6,8 +6,8 @@
 // never `.select("*")` — so uploader identity and private S3 keys can never
 // leak through these paths, no matter what gets added to media_items later.
 //
-// If S3/CDN is not configured (lib/storage/config.ts), these fail soft:
-// pages render with no media rather than a 500. A missing cover or gallery
+// If S3/CDN is not configured (lib/storage/config.ts), S3 rows are skipped
+// (Drive rows still show). Pages render rather than 500. A missing cover or gallery
 // section is a worse outcome, but not a broken site.
 // ============================================================
 
@@ -23,7 +23,7 @@ export async function getEventCovers(eventIds: readonly string[]): Promise<Map<s
 
   const storage = getStorage();
   const db = getAdminClient();
-  if (!storage || !db) return out;
+  if (!db) return out;
 
   const { data, error } = await db
     .from("media_items")
@@ -38,7 +38,7 @@ export async function getEventCovers(eventIds: readonly string[]): Promise<Map<s
     return out;
   }
 
-  const views = toPublicViews((data ?? []) as unknown as PublicMediaItem[], storage.config.cdnUrl);
+  const views = toPublicViews((data ?? []) as unknown as PublicMediaItem[], storage?.config.cdnUrl ?? null);
   const byEvent = new Map<string, PublicMediaView[]>();
   for (const v of views) {
     const list = byEvent.get(v.eventId);
@@ -61,7 +61,7 @@ export async function getEventCover(eventId: string): Promise<PublicMediaView | 
 export async function getEventMedia(eventId: string): Promise<{ cover: PublicMediaView | null; items: PublicMediaView[] }> {
   const storage = getStorage();
   const db = getAdminClient();
-  if (!storage || !db) return { cover: null, items: [] };
+  if (!db) return { cover: null, items: [] };
 
   const { data, error } = await db
     .from("media_items")
@@ -77,7 +77,7 @@ export async function getEventMedia(eventId: string): Promise<{ cover: PublicMed
     return { cover: null, items: [] };
   }
 
-  const all = toPublicViews((data ?? []) as unknown as PublicMediaItem[], storage.config.cdnUrl);
+  const all = toPublicViews((data ?? []) as unknown as PublicMediaItem[], storage?.config.cdnUrl ?? null);
   const cover = pickCover(all.filter((i) => i.purpose === "cover"));
   const items = all.filter((i) => i !== cover);
   return { cover, items };
@@ -87,7 +87,7 @@ export async function getEventMedia(eventId: string): Promise<{ cover: PublicMed
 export async function getGalleryGroups(events: readonly EventLike[]): Promise<GalleryGroup[]> {
   const storage = getStorage();
   const db = getAdminClient();
-  if (!storage || !db || events.length === 0) return [];
+  if (!db || events.length === 0) return [];
 
   const { data, error } = await db
     .from("media_items")
@@ -103,6 +103,6 @@ export async function getGalleryGroups(events: readonly EventLike[]): Promise<Ga
     return [];
   }
 
-  const views = toPublicViews((data ?? []) as unknown as PublicMediaItem[], storage.config.cdnUrl);
+  const views = toPublicViews((data ?? []) as unknown as PublicMediaItem[], storage?.config.cdnUrl ?? null);
   return groupByEvent(events, views);
 }

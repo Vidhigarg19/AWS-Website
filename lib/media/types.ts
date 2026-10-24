@@ -5,16 +5,21 @@
 import type { MediaKind, MediaPurpose } from "./policy.ts";
 import type { MediaStatus } from "./status.ts";
 
+export type MediaSource = "s3" | "drive";
+
 /** Full row — server code only. Never send this to a browser. */
 export interface MediaItemRow {
   id: string;
   event_id: string;
   uploaded_by: string | null;
+  /** 's3' = file in our bucket; 'drive' = link-only, shown straight from Google Drive. */
+  source: MediaSource;
+  drive_file_id: string | null;
   kind: MediaKind;
   purpose: MediaPurpose;
   mime_type: string;
-  size_bytes: number;
-  original_key: string;
+  size_bytes: number | null;
+  original_key: string | null;
   web_key: string | null;
   thumb_key: string | null;
   poster_key: string | null;
@@ -42,6 +47,8 @@ export const PUBLIC_MEDIA_COLUMNS = [
   "height",
   "duration_s",
   "caption",
+  "source",
+  "drive_file_id",
   "web_key",
   "thumb_key",
   "poster_key",

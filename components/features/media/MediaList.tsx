@@ -11,7 +11,9 @@ export interface MediaListItem {
   kind: "image" | "video";
   purpose: "cover" | "gallery";
   status: "processing" | "ready" | "hidden" | string;
-  size_bytes: number;
+  /** null for a Drive item whose size Drive did not report. */
+  size_bytes: number | null;
+  source: "s3" | "drive";
   created_at: string;
   caption: string | null;
   mine: boolean;
@@ -145,7 +147,13 @@ function MediaRow({ item }: { item: MediaListItem }) {
             )}
           </p>
           <p className="mt-0.5 text-xs text-[#71717A]">
-            {formatBytes(item.size_bytes)} · {formatWhen(item.created_at)}
+            {[
+              item.source === "drive" ? "Google Drive" : null,
+              item.size_bytes ? formatBytes(item.size_bytes) : null,
+              formatWhen(item.created_at),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
             {item.mine ? " · You" : ""}
           </p>
           {!editing && item.caption && <p className="mt-1 truncate text-xs text-[#A1A1AA]">{item.caption}</p>}

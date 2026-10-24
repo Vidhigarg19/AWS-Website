@@ -1,5 +1,6 @@
 "use client";
 
+import { isDriveUrl } from "@/lib/media/drive";
 import * as React from "react";
 import Image from "next/image";
 import gsap from "gsap";
@@ -212,6 +213,7 @@ export function Gallery({ groups }: { groups: GalleryGroup[] }) {
                         alt=""
                         fill
                         sizes="144px"
+                        unoptimized={isDriveUrl(cover.thumbUrl)}
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     )}

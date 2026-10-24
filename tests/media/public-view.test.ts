@@ -18,6 +18,8 @@ function row(over: Partial<PublicMediaItem> = {}): PublicMediaItem {
     height: 600,
     duration_s: null,
     caption: null,
+    source: "s3",
+    drive_file_id: null,
     web_key: `events/${E1}/web/${id}.webp`,
     thumb_key: `events/${E1}/thumb/${id}.webp`,
     poster_key: null,
@@ -108,4 +110,39 @@ test("groupByEvent: events with media sort newest-dated first, TBA (null date) f
 test("groupByEvent: an item for an unknown event id is simply never grouped", () => {
   const items = toPublicViews([row({ id: "00000000-0000-4000-8000-000000000001", event_id: "99999999-9999-4999-8999-999999999999" })], CDN);
   assert.deepEqual(groupByEvent([{ id: E1, name: "x", event_date: null }], items), []);
+});
+
+const DRIVE_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz_-123";
+function driveRow(over: Partial<PublicMediaItem> = {}): PublicMediaItem {
+  return row({ source: "drive", drive_file_id: DRIVE_ID, web_key: null, thumb_key: null, poster_key: null, ...over });
+}
+
+test("a Drive image becomes Drive thumbnail urls, with no CDN needed", () => {
+  const v = toPublicView(driveRow(), null);
+  assert.ok(v);
+  assert.equal(v!.source, "drive");
+  assert.equal(v!.url, `https://drive.google.com/thumbnail?id=${DRIVE_ID}&sz=w1600`);
+  assert.equal(v!.thumbUrl, `https://drive.google.com/thumbnail?id=${DRIVE_ID}&sz=w480`);
+  assert.equal(v!.embedUrl, undefined);
+});
+
+test("a Drive video gets an embed player and a still poster", () => {
+  const v = toPublicView(driveRow({ kind: "video" }), CDN);
+  assert.equal(v!.embedUrl, `https://drive.google.com/file/d/${DRIVE_ID}/preview`);
+  assert.equal(v!.posterUrl, v!.url);
+});
+
+test("Drive row without an id, or S3 row without a CDN, is dropped", () => {
+  assert.equal(toPublicView(driveRow({ drive_file_id: null }), CDN), null);
+  assert.equal(toPublicView(row(), null), null);
+});
+
+test("a malformed Drive id is dropped, never turned into a url", () => {
+  assert.equal(toPublicView(driveRow({ drive_file_id: "x\"><b>" }), CDN), null);
+  assert.equal(toPublicViews([driveRow({ drive_file_id: "../etc" })], CDN).length, 0);
+});
+
+test("pickCover prefers a still image over a video when there is no cover purpose", () => {
+  const items = toPublicViews([driveRow({ id: "00000000-0000-4000-8000-0000000000a1", kind: "video" }), row({ id: "00000000-0000-4000-8000-0000000000a2" })], CDN);
+  assert.equal(pickCover(items)!.kind, "image");
 });

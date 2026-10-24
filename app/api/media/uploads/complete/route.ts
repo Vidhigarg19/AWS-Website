@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     .from("media_items")
     .select("id, uploaded_by, kind, mime_type, size_bytes, original_key, status")
     .in("id", ids)
+    .eq("source", "s3") // Drive items never go through S3 completion
     .is("deleted_at", null);
   if (rowsRes.error) {
     console.error("[API/media/complete] Row lookup error:", rowsRes.error.message);

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requirePortalPage } from "@/lib/auth/require-portal-page";
 import { isUuid } from "@/lib/auth/roles";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { DriveImport } from "@/components/features/media/DriveImport";
 import { Uploader } from "@/components/features/media/Uploader";
 import { MediaList, type MediaListItem } from "@/components/features/media/MediaList";
 
@@ -56,7 +57,7 @@ export default async function EventMediaPage({
   // Unfinished (pending) and failed uploads are noise here: show real items only.
   const mediaRes = await db
     .from("media_items")
-    .select("id, uploaded_by, kind, purpose, status, size_bytes, caption, created_at")
+    .select("id, uploaded_by, kind, purpose, status, size_bytes, caption, source, created_at")
     .eq("event_id", event.id)
     .is("deleted_at", null)
     .in("status", ["processing", "ready", "hidden"])
@@ -73,7 +74,8 @@ export default async function EventMediaPage({
     kind: r.kind as "image" | "video",
     purpose: r.purpose as "cover" | "gallery",
     status: r.status as string,
-    size_bytes: Number(r.size_bytes),
+    size_bytes: r.size_bytes === null ? null : Number(r.size_bytes),
+    source: r.source === "drive" ? "drive" : "s3",
     caption: (r.caption as string | null) ?? null,
     created_at: r.created_at as string,
     mine: r.uploaded_by === session.user.id,
@@ -91,6 +93,7 @@ export default async function EventMediaPage({
       </div>
 
       <Uploader eventId={event.id} />
+      <DriveImport eventId={event.id} />
 
       {loadFailed ? (
         <p role="alert" className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">

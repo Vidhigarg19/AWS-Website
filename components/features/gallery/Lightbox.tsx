@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { formatDuration } from "@/lib/media/format";
+import { isDriveUrl } from "@/lib/media/drive";
 
 export interface LightboxItem {
   id: string;
@@ -11,6 +12,8 @@ export interface LightboxItem {
   url: string;
   thumbUrl: string;
   posterUrl?: string;
+  /** Google Drive player for a Drive video (an iframe, since Drive has no direct file url). */
+  embedUrl?: string;
   caption: string | null;
   width: number | null;
   height: number | null;
@@ -38,6 +41,7 @@ export function MediaGrid({ items }: { items: LightboxItem[] }) {
                 src={item.thumbUrl}
                 alt={item.caption ?? ""}
                 fill
+                unoptimized={isDriveUrl(item.thumbUrl)}
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className="object-cover transition-transform duration-300 group-hover:scale-105"
               />
@@ -138,7 +142,18 @@ function LightboxOverlay({
       )}
 
       <div className="relative flex max-h-[85vh] max-w-5xl flex-col items-center gap-3">
-        {item.kind === "video" ? (
+        {item.embedUrl ? (
+          <iframe
+            key={item.id}
+            src={item.embedUrl}
+            title={item.caption ?? "Video"}
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+            className="aspect-video w-[min(90vw,64rem)] max-h-[75vh] rounded-lg border-0 bg-black"
+          />
+        ) : item.kind === "video" ? (
           // eslint-disable-next-line jsx-a11y/media-has-caption
           <video
             key={item.id}
@@ -153,6 +168,7 @@ function LightboxOverlay({
             key={item.id}
             src={item.url}
             alt={item.caption ?? ""}
+            referrerPolicy="no-referrer"
             className="max-h-[75vh] max-w-full rounded-lg object-contain"
           />
         )}

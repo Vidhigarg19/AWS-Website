@@ -13,6 +13,7 @@
 // ============================================================
 
 import { publicUrl } from "./keys.ts";
+import { driveThumbUrl, drivePreviewUrl, DRIVE_ID_PATTERN } from "./drive.ts";
 import type { MediaKind, MediaPurpose } from "./policy.ts";
 import type { PublicMediaItem } from "./types.ts";
 
@@ -32,16 +33,17 @@ export interface PublicMediaView {
   thumbUrl: string;
   /** Poster frame for a video. Undefined for an image. */
   posterUrl?: string;
+  /** Google Drive player (iframe src) for a Drive video. `url` is then a still image. */
+  embedUrl?: string;
+  source: "s3" | "drive";
 }
 
-/** One row -> one view, or null if it is not ready to show (no public file yet). */
-export function toPublicView(row: PublicMediaItem, cdnBase: string): PublicMediaView | null {
-  if (!row.web_key) return null;
-  const url = publicUrl(cdnBase, row.web_key);
-  const thumbUrl = row.thumb_key ? publicUrl(cdnBase, row.thumb_key) : url;
-  const posterUrl = row.poster_key ? publicUrl(cdnBase, row.poster_key) : undefined;
-
-  return {
+/**
+ * One row -> one view, or null if it is not ready to show (no public file yet,
+ * or an S3 row while the CDN is not configured). Drive rows need no CDN.
+ */
+export function toPublicView(row: PublicMediaItem, cdnBase: string | null): PublicMediaView | null {
+  const common = {
     id: row.id,
     eventId: row.event_id,
     kind: row.kind,
@@ -51,14 +53,30 @@ export function toPublicView(row: PublicMediaItem, cdnBase: string): PublicMedia
     height: row.height,
     durationS: row.duration_s,
     createdAt: row.created_at,
-    url,
-    thumbUrl,
-    posterUrl,
   };
+
+  if (row.source === "drive") {
+    if (!row.drive_file_id || !DRIVE_ID_PATTERN.test(row.drive_file_id)) return null;
+    const url = driveThumbUrl(row.drive_file_id, 1600);
+    return {
+      ...common,
+      source: "drive",
+      url,
+      thumbUrl: driveThumbUrl(row.drive_file_id, 480),
+      posterUrl: row.kind === "video" ? url : undefined,
+      embedUrl: row.kind === "video" ? drivePreviewUrl(row.drive_file_id) : undefined,
+    };
+  }
+
+  if (!row.web_key || !cdnBase) return null;
+  const url = publicUrl(cdnBase, row.web_key);
+  const thumbUrl = row.thumb_key ? publicUrl(cdnBase, row.thumb_key) : url;
+  const posterUrl = row.poster_key ? publicUrl(cdnBase, row.poster_key) : undefined;
+  return { ...common, source: "s3", url, thumbUrl, posterUrl };
 }
 
 /** Maps a batch, silently dropping rows that are not renderable (never throws on bad data). */
-export function toPublicViews(rows: readonly PublicMediaItem[], cdnBase: string): PublicMediaView[] {
+export function toPublicViews(rows: readonly PublicMediaItem[], cdnBase: string | null): PublicMediaView[] {
   const out: PublicMediaView[] = [];
   for (const row of rows) {
     const v = toPublicView(row, cdnBase);
@@ -123,5 +141,10 @@ export function groupByEvent(
 
 /** The single cover to show for one event (landing card / Events page), or null. */
 export function pickCover(items: readonly PublicMediaView[]): PublicMediaView | null {
-  return items.find((i) => i.purpose === "cover") ?? items[0] ?? null;
+  return (
+    items.find((i) => i.purpose === "cover") ??
+    items.find((i) => i.kind === "image") ?? // a cover must be a still image
+    items[0] ??
+    null
+  );
 }

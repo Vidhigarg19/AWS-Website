@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getPortalSession } from "@/lib/auth/require-role";
 import { isRoleAllowed, MEDIA_PORTAL_ROLES, type PortalRole } from "@/lib/auth/roles";
+import Link from "next/link";
+import { KeyRound } from "lucide-react";
 import { SignOutButton } from "@/components/features/media/SignOutButton";
 
 const ROLE_LABEL: Record<PortalRole, string> = {
@@ -37,6 +39,9 @@ export default async function MediaPortalLayout({
     redirect("/media/login");
   }
 
+  // Temporary password still in use: the portal is closed until it is changed.
+  if (result.session.mustChangePassword) redirect("/media/change-password");
+
   const { user, role, displayName } = result.session;
 
   return (
@@ -63,7 +68,16 @@ export default async function MediaPortalLayout({
               {user.email} · <span className="text-[#8B83FF]">{ROLE_LABEL[role]}</span>
             </p>
           </div>
-          <SignOutButton />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/media/change-password"
+              className="h-9 px-3.5 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white hover:bg-white/[0.06] border border-white/[0.08] transition-all flex items-center gap-2 bg-white/[0.02]"
+            >
+              <KeyRound className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Change password</span>
+            </Link>
+            <SignOutButton />
+          </div>
         </header>
         {children}
       </main>

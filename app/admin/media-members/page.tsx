@@ -175,7 +175,8 @@ export default function MediaMembersPage() {
               </div>
             </dl>
             <p className="text-xs text-[#A1A1AA]">
-              This password is shown only once and is not stored. If it is lost, reset it.
+              This password is temporary: the member must choose their own at first sign-in. It is shown only
+              once and is not stored. If it is lost, reset it.
             </p>
           </div>
         )}

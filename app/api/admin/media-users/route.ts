@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
     email,
     display_name: displayName,
     created_by: auth.session.user.id,
+    must_change_password: true, // they must choose their own on first sign-in
   });
 
   if (insertError) {

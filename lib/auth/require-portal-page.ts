@@ -18,10 +18,16 @@ import { isRoleAllowed, MEDIA_PORTAL_ROLES } from "./roles";
 
 const lookup = cache(getPortalSession);
 
-export async function requirePortalPage(): Promise<PortalSession> {
+export async function requirePortalPage(
+  options: { allowPasswordChangePending?: boolean } = {}
+): Promise<PortalSession> {
   const result = await lookup();
   if (!result.ok || !isRoleAllowed(result.session.role, MEDIA_PORTAL_ROLES)) {
     redirect("/media/login");
+  }
+  // Still on the temporary password: the only page they may see is the change form.
+  if (result.session.mustChangePassword && !options.allowPasswordChangePending) {
+    redirect("/media/change-password");
   }
   return result.session;
 }

@@ -13,17 +13,20 @@ interface MeResponse {
   role: PortalRole;
   email: string | null;
   displayName: string | null;
+  mustChangePassword: boolean;
 }
 
 export async function GET() {
-  const auth = await requireRole(MEDIA_PORTAL_ROLES);
+  // Allowed while the password change is pending: the login page uses this to
+  // learn where to send the member.
+  const auth = await requireRole(MEDIA_PORTAL_ROLES, { allowPasswordChangePending: true });
   if (!auth.ok) return auth.response;
 
-  const { user, role, displayName } = auth.session;
+  const { user, role, displayName, mustChangePassword } = auth.session;
   return NextResponse.json(
     {
       success: true,
-      data: { role, email: user.email ?? null, displayName },
+      data: { role, email: user.email ?? null, displayName, mustChangePassword },
     } satisfies ApiResponse<MeResponse>,
     { headers: { "Cache-Control": "no-store" } }
   );

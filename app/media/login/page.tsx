@@ -61,7 +61,9 @@ export default function MediaLoginPage() {
         return;
       }
 
-      router.push(safeRedirectTarget());
+      // Still on the temporary password: go straight to the form that replaces it.
+      const me = await res.json().catch(() => null);
+      router.push(me?.data?.mustChangePassword ? "/media/change-password" : safeRedirectTarget());
       router.refresh();
     } catch {
       setError("An unexpected error occurred. Please try again.");

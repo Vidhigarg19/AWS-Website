@@ -35,6 +35,12 @@ export interface PortalSession {
   role: PortalRole;
   /** Shown in the portal header. Falls back to the email if unknown. */
   displayName: string | null;
+  /**
+   * True while a media member still has the temporary password a super admin
+   * issued. Such a session may only reach the change-password page and API.
+   * Always false for dashboard admins (their passwords are not issued here).
+   */
+  mustChangePassword: boolean;
 }
 
 export type PortalLookup =
@@ -76,6 +82,7 @@ export async function getPortalSession(): Promise<PortalLookup> {
         user,
         role: adminRole,
         displayName: (user.user_metadata?.display_name as string | undefined) ?? null,
+        mustChangePassword: false,
       },
     };
   }
@@ -83,7 +90,7 @@ export async function getPortalSession(): Promise<PortalLookup> {
   // 2) Media members (must be explicitly active).
   const memberRes = await db
     .from("media_members")
-    .select("active, display_name")
+    .select("active, display_name, must_change_password")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -98,7 +105,13 @@ export async function getPortalSession(): Promise<PortalLookup> {
 
   return {
     ok: true,
-    session: { user, role, displayName: memberRes.data?.display_name ?? null },
+    session: {
+      user,
+      role,
+      displayName: memberRes.data?.display_name ?? null,
+      // Fail closed: anything but an explicit FALSE counts as "must change".
+      mustChangePassword: memberRes.data?.must_change_password !== false,
+    },
   };
 }
 
@@ -107,7 +120,11 @@ export async function getPortalSession(): Promise<PortalLookup> {
  * error response the handler should return immediately.
  */
 export async function requireRole(
-  allowed: readonly PortalRole[]
+  allowed: readonly PortalRole[],
+  options: {
+    /** Only the change-password route and /api/media/me set this. */
+    allowPasswordChangePending?: boolean;
+  } = {}
 ): Promise<
   { ok: true; session: PortalSession } | { ok: false; response: NextResponse }
 > {
@@ -126,6 +143,22 @@ export async function requireRole(
     return {
       ok: false,
       response: NextResponse.json({ success: false, error } satisfies ApiResponse, { status }),
+    };
+  }
+
+  // A member still on the temporary password may do nothing but change it.
+  // Checked on EVERY request, so a reset also locks sessions that are already open.
+  if (result.session.mustChangePassword && !options.allowPasswordChangePending) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          success: false,
+          error: "Choose your own password first (Media Portal → Change password).",
+          code: "password_change_required",
+        },
+        { status: 403 }
+      ),
     };
   }
 

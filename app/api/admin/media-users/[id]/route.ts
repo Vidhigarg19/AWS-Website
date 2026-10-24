@@ -116,6 +116,17 @@ export async function PATCH(
 
   let temporaryPassword: string | undefined;
   if (patch.resetPassword) {
+    // Flag FIRST: if the reset itself then fails, the member is merely asked to
+    // pick a new password. The other order could leave a temporary password
+    // in use with no prompt. It also locks sessions that are already open.
+    const flag = await db.from("media_members").update({ must_change_password: true }).eq("id", id);
+    if (flag.error) {
+      console.error("[API/admin/media-users] flag error:", flag.error.message);
+      return NextResponse.json(
+        { success: false, error: "Could not reset the password." } satisfies ApiResponse,
+        { status: 500 }
+      );
+    }
     temporaryPassword = generateTempPassword();
     const { error } = await db.auth.admin.updateUserById(id, { password: temporaryPassword });
     if (error) {

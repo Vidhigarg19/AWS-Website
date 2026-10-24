@@ -14,6 +14,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
@@ -63,7 +64,9 @@ function isNotFound(err: unknown): boolean {
 }
 
 /** The S3 half of the completion ports. */
-export function s3Ports(storage: Storage): Pick<CompletionPorts, "headObject" | "readFirstBytes" | "deleteObject"> {
+export function s3Ports(
+  storage: Storage
+): Pick<CompletionPorts, "headObject" | "readFirstBytes" | "readObject" | "putObject" | "deleteObject"> {
   const { client, config } = storage;
   return {
     async headObject(key) {
@@ -87,6 +90,25 @@ export function s3Ports(storage: Storage): Pick<CompletionPorts, "headObject" | 
         if ((err as { name?: string })?.name === "InvalidRange") return new Uint8Array();
         throw err;
       }
+    },
+
+    async readObject(key) {
+      const res = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+      if (!res.Body) throw new Error("Empty S3 response body.");
+      return res.Body.transformToByteArray();
+    },
+
+    async putObject(key, body, contentType) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: config.bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          // Keys are unique per media id, so browsers/CDN may cache them forever.
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
     },
 
     async deleteObject(key) {

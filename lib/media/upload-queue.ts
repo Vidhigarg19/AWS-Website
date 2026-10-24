@@ -15,7 +15,7 @@
 //
 //   `waiting` = signed, but all upload slots are busy (max 3 at once).
 //   `live`      = visible on the public site now (videos).
-//   `processing`= verified; waits for the image pipeline (step 7).
+//   `processing`= verified; the server is still preparing the public versions.
 //
 // The server re-checks EVERYTHING. The pre-check here only saves the user a
 // round trip and explains problems early.
@@ -82,6 +82,8 @@ export function formatBytes(bytes: number): string {
 // ── Pre-check ────────────────────────────────────────────────
 
 const IOS_FORMATS = /\.(heic|heif|mov)$/i;
+// HEIC is converted to JPEG in the browser before it gets here (Uploader.tsx).
+// Seeing one here means that conversion failed.
 
 /** Plain-language reason a file cannot be uploaded, or null if it looks fine. */
 export function precheckFile(file: FileInfo, purpose: MediaPurpose): string | null {
@@ -90,7 +92,9 @@ export function precheckFile(file: FileInfo, purpose: MediaPurpose): string | nu
   const rule = Object.hasOwn(ALLOWED_TYPES, file.type) ? ALLOWED_TYPES[file.type] : undefined;
   if (!rule) {
     if (IOS_FORMATS.test(file.name) || /^(image\/hei[cf]|video\/quicktime)$/.test(file.type)) {
-      return "iPhone formats (HEIC / MOV) are not supported yet. Export as JPEG or MP4 and try again.";
+      return /mov|quicktime/i.test(file.name + file.type)
+        ? "iPhone videos (MOV) are not supported. Export as MP4, or add them with a Google Drive link."
+        : "This iPhone photo (HEIC) could not be converted. Export it as JPEG and try again.";
     }
     return "Unsupported file type. Use JPEG, PNG, WebP, MP4 or WebM.";
   }
@@ -224,6 +228,7 @@ const REJECT_MESSAGES: Record<string, string> = {
   size_mismatch: "The file changed size while uploading. Remove it and add it again.",
   type_mismatch: "The file type did not match. Remove it and add it again.",
   content_mismatch: "This file is not a valid image or video, so it was rejected.",
+  unreadable_image: "This photo could not be opened (it may be corrupt). Re-export it as JPEG and add it again.",
 };
 
 export function applyOutcome(item: QueueItem, outcome: CompleteOutcome): QueueItem {

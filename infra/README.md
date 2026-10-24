@@ -42,6 +42,10 @@ aws cloudformation describe-stacks --region ap-south-1 --stack-name sbg-media \
   --query "Stacks[0].Outputs" --output table
 ```
 
+> **Updating from an earlier version?** Step 7 added `s3:PutObject` on `events/*/web/*` and `events/*/thumb/*`
+> (the app now writes the processed photos itself). Re-run the `deploy` command above to update the policy,
+> or photos will stay in `processing`. See `docs/media-processing.md`.
+
 ## 2. Give the app permission (no access keys)
 
 The template made a managed policy (output `AppPolicyArn`). Attach it to the IAM role your Amplify app **compute** runs with.

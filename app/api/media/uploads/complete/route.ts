@@ -19,6 +19,8 @@ import { MEDIA_PORTAL_ROLES } from "@/lib/auth/roles";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getStorage, s3Ports } from "@/lib/storage/s3";
 import { dbPorts } from "@/lib/media/db-ports";
+import { imagePort } from "@/lib/media/image-port";
+import { mapLimit } from "@/lib/media/concurrency";
 import { completeUpload, type CompletionOutcome, type CompletionRow } from "@/lib/media/complete";
 import { validateCompleteRequest } from "@/lib/media/validate";
 import type { ApiResponse } from "@/types/certificate";
@@ -28,6 +30,9 @@ const NO_STORE = { "Cache-Control": "no-store" };
 function fail(error: string, status: number) {
   return NextResponse.json({ success: false, error } satisfies ApiResponse, { status });
 }
+
+/** Photos processed at the same time within one request. */
+const PROCESS_CONCURRENCY = 3;
 
 type Result = CompletionOutcome | { mediaId: string; state: "error" };
 
@@ -53,7 +58,7 @@ export async function POST(request: NextRequest) {
 
   const rowsRes = await db
     .from("media_items")
-    .select("id, uploaded_by, kind, mime_type, size_bytes, original_key, status")
+    .select("id, event_id, uploaded_by, kind, mime_type, size_bytes, original_key, status")
     .in("id", ids)
     .eq("source", "s3") // Drive items never go through S3 completion
     .is("deleted_at", null);
@@ -65,10 +70,13 @@ export async function POST(request: NextRequest) {
     (rowsRes.data as CompletionRow[]).map((r) => [r.id, r])
   );
 
-  const ports = { ...s3Ports(storage), ...dbPorts(db) };
+  const ports = { ...s3Ports(storage), ...dbPorts(db), ...imagePort };
 
-  const results: Result[] = await Promise.all(
-    ids.map(async (id): Promise<Result> => {
+  // A few at a time: decoding a large photo needs real memory.
+  const results: Result[] = await mapLimit(
+    ids,
+    PROCESS_CONCURRENCY,
+    async (id): Promise<Result> => {
       try {
         return await completeUpload(id, byId.get(id), caller, ports);
       } catch (err) {
@@ -76,7 +84,7 @@ export async function POST(request: NextRequest) {
         console.error("[API/media/complete] Item error:", id, err instanceof Error ? err.message : err);
         return { mediaId: id, state: "error" };
       }
-    })
+    }
   );
 
   // Every file failed unexpectedly: almost certainly configuration (IAM, env).
@@ -84,7 +92,7 @@ export async function POST(request: NextRequest) {
     return fail("Failed to complete the upload.", 500);
   }
 
-  // A video can go live here, so refresh the cached public gallery.
+  // Images and videos can go live here, so refresh the cached public gallery.
   if (results.some((r) => r.state === "accepted")) revalidatePath("/gallery", "layout");
 
   return NextResponse.json(

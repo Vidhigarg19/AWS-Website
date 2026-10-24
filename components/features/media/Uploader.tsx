@@ -15,8 +15,13 @@ import {
   type QueueItem,
 } from "@/lib/media/upload-queue";
 import { completeOne, initUploads, postToS3 } from "@/lib/media/client-upload";
+import { isHeicFile } from "@/lib/media/heic";
+import { convertHeicToJpeg } from "./convert-heic";
 
-const ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/webm";
+// HEIC (iPhone photos) is accepted by the picker and converted to JPEG in the browser first.
+const HEIC_ACCEPT = "image/heic,image/heif,.heic,.heif";
+const IMAGE_ACCEPT = `image/jpeg,image/png,image/webp,${HEIC_ACCEPT}`;
+const ACCEPT = `${IMAGE_ACCEPT},video/mp4,video/webm`;
 
 const STATUS_LABEL: Record<string, string> = {
   queued: "Waiting…",
@@ -32,6 +37,8 @@ export function Uploader({ eventId }: { eventId: string }) {
   const [items, dispatch] = useReducer(queueReducer, [] as QueueItem[]);
   const [purpose, setPurpose] = useState<MediaPurpose>("gallery");
   const [dragging, setDragging] = useState(false);
+  /** iPhone photos still being converted to JPEG (shown as a message). */
+  const [converting, setConverting] = useState(0);
 
   // Non-state bookkeeping: the File objects, signed forms, previews, and
   // "already started" guards (so React StrictMode's double effects cannot
@@ -130,10 +137,33 @@ export function Uploader({ eventId }: { eventId: string }) {
     return () => previews.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
-  const addFiles = useCallback((list: FileList | File[]) => {
+  const addFiles = useCallback(async (list: FileList | File[]) => {
     let files = Array.from(list);
     if (purposeRef.current === "cover") files = files.slice(0, 1); // one cover per event
     if (files.length === 0) return;
+
+    // iPhone photos: convert to JPEG here, one at a time (each decode needs real memory).
+    // A file that fails to convert stays as it is and is rejected by the normal pre-check.
+    const heicCount = files.filter((f) => isHeicFile(f)).length;
+    if (heicCount > 0) {
+      setConverting((n) => n + heicCount);
+      const converted: File[] = [];
+      for (const file of files) {
+        if (!isHeicFile(file)) {
+          converted.push(file);
+          continue;
+        }
+        try {
+          converted.push(await convertHeicToJpeg(file));
+        } catch {
+          converted.push(file);
+        } finally {
+          setConverting((n) => n - 1);
+        }
+      }
+      files = converted;
+    }
+
     const built = files.map((file) => {
       const id = crypto.randomUUID();
       const item = buildQueueItem(id, { name: file.name, type: file.type, size: file.size }, purposeRef.current);
@@ -220,12 +250,12 @@ export function Uploader({ eventId }: { eventId: string }) {
           {purpose === "cover" ? "Choose one cover image" : "Drop files here, or click to browse"}
         </span>
         <span className="text-xs text-[#71717A]">
-          JPEG, PNG, WebP up to 25 MB{purpose === "gallery" ? " · MP4, WebM up to 500 MB" : ""}
+          JPEG, PNG, WebP, iPhone HEIC up to 25 MB{purpose === "gallery" ? " · MP4, WebM up to 500 MB" : ""}
         </span>
         <input
           type="file"
           className="sr-only"
-          accept={purpose === "cover" ? "image/jpeg,image/png,image/webp" : ACCEPT}
+          accept={purpose === "cover" ? IMAGE_ACCEPT : ACCEPT}
           multiple={purpose === "gallery"}
           onChange={(e) => {
             if (e.target.files) addFiles(e.target.files);
@@ -233,6 +263,13 @@ export function Uploader({ eventId }: { eventId: string }) {
           }}
         />
       </label>
+
+      {converting > 0 && (
+        <p role="status" className="flex items-center gap-2 text-xs text-[#A1A1AA]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          Converting {converting} iPhone {converting === 1 ? "photo" : "photos"} to JPEG…
+        </p>
+      )}
 
       {items.length > 0 && (
         <>

@@ -188,6 +188,9 @@ Resources:
             Resource:
               - !Sub "${MediaBucket.Arn}/events/*/original/*"
               - !Sub "${MediaBucket.Arn}/events/*/video/*"
+              # Written by the app itself after it processes a photo (lib/media/complete.ts).
+              - !Sub "${MediaBucket.Arn}/events/*/web/*"
+              - !Sub "${MediaBucket.Arn}/events/*/thumb/*"
           # Read back: HeadObject (did the upload arrive?) and Range reads (check the real file type).
           - Sid: ReadEventMedia
             Effect: Allow

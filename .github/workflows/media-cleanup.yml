@@ -1,0 +1,42 @@
+# Daily housekeeping for the Media Portal: expires abandoned uploads and purges
+# failed / deleted media (files first, then rows). See docs/architecture/media-portal.md.
+#
+# Repository secrets needed (Settings -> Secrets and variables -> Actions):
+#   SITE_URL     e.g. https://sbg.example.com   (no trailing slash)
+#   CRON_SECRET  the same value as the CRON_SECRET env var on Amplify
+name: media-cleanup
+
+on:
+  schedule:
+    - cron: "30 21 * * *" # 21:30 UTC = 03:00 IST
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only, change nothing"
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the cleanup endpoint
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SITE_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "SITE_URL and CRON_SECRET secrets must be set"; exit 1
+          fi
+          query=""
+          if [ "${DRY_RUN:-false}" = "true" ]; then query="?dryRun=1"; fi
+          code=$(curl -sS -o response.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            --max-time 90 "${SITE_URL}/api/cron/media-cleanup${query}")
+          cat response.json; echo
+          [ "$code" = "200" ] || { echo "Cleanup failed with HTTP $code"; exit 1; }

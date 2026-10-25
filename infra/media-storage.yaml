@@ -203,6 +203,12 @@ Resources:
             Resource: !Sub "${MediaBucket.Arn}/events/*"
           # Without ListBucket, HeadObject on a missing key returns 403 instead of 404,
           # and the app could not tell "not uploaded yet" from "access denied".
+          # Daily cleanup job: ask CloudFront to forget files it just purged
+          # (the app is optional-safe: without this the purge still works).
+          - Sid: InvalidateMediaCdn
+            Effect: Allow
+            Action: "cloudfront:CreateInvalidation"
+            Resource: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MediaDistribution}"
           - Sid: ListEventPrefixOnly
             Effect: Allow
             Action: "s3:ListBucket"

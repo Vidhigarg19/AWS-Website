@@ -8,9 +8,9 @@
 // Why these types only:
 //   - JPEG / PNG / WebP: every browser can show them and sharp can resize them.
 //   - MP4 / WebM: play natively in browsers.
-//   - NOT HEIC (iPhone default) or MOV (QuickTime): they need conversion
-//     first (libheif / transcoding). Ask uploaders to export as JPEG / MP4,
-//     or add conversion later (see docs/architecture/media-portal.md).
+//   - HEIC (iPhone photos) is NOT stored as-is: the browser converts it to JPEG
+//     before upload (components/features/media/convert-heic.ts), so only JPEG
+//     reaches S3. MOV (iPhone video) is unsupported: export as MP4.
 //
 // The browser-declared Content-Type is only a first filter. The real type is
 // verified from the file's own bytes (see ./sniff.ts).

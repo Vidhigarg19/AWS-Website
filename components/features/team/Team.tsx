@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { TeamHeroRedesign } from "./TeamHeroRedesign";
 import { TeamSelectionRoadmap } from "./TeamSelectionRoadmap";
-import { TeamWingsHiring } from "./TeamWingsHiring";
+import { TeamWingsRedesign } from "./TeamWingsRedesign";
 import { TeamLeadershipRedesign } from "./TeamLeadershipRedesign";
 import { TeamMembersDirectory } from "./TeamMembersDirectory";
 import { TeamFAQ } from "./TeamFAQ";
@@ -44,7 +44,7 @@ export function Team() {
           </div>
 
           <div className="border-t border-border/40">
-            <TeamWingsHiring />
+            <TeamWingsRedesign />
           </div>
 
           <div className="border-t border-border/40">

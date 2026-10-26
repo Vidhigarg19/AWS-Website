@@ -99,8 +99,8 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
         minWidth: "950px",
       }}
       className={cn(
-        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full bg-white/5 border border-white/10 shadow-lg px-4 py-2 lg:flex dark:bg-black/10 dark:border-white/10 backdrop-blur-[16px]",
-        visible && "bg-white/10 dark:bg-black/20",
+        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-[rgba(255,153,0,0.18)] bg-[rgba(15,12,8,0.72)] shadow-lg px-4 py-2 backdrop-blur-[16px] lg:flex",
+        visible && "bg-[rgba(15,12,8,0.82)]",
         className,
       )}
     >
@@ -135,8 +135,10 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
             onMouseEnter={() => setHovered(idx)}
             onClick={onItemClick}
             className={cn(
-              "relative px-4 py-2 transition-colors",
-              isActive ? "text-text-primary" : "text-text-secondary hover:text-text-primary"
+              "relative px-4 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900]",
+              isActive
+                ? "text-[#FF9900]"
+                : "text-white/65 hover:text-[#FF9900]"
             )}
             key={`link-${idx}`}
             href={item.link}
@@ -144,13 +146,13 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
             {isActive && (
               <motion.div
                 layoutId="active"
-                className="absolute inset-0 h-full w-full rounded-full bg-primary/20"
+                className="absolute inset-0 h-full w-full rounded-full bg-[rgba(255,153,0,0.15)]"
               />
             )}
             {hovered === idx && !isActive && (
               <motion.div
                 layoutId="hovered"
-                className="absolute inset-0 h-full w-full rounded-full bg-white/10 dark:bg-white/5"
+                className="absolute inset-0 h-full w-full rounded-full bg-[rgba(255,153,0,0.12)]"
               />
             )}
             <span className="relative z-20">{item.name}</span>
@@ -178,8 +180,8 @@ export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
         damping: 50,
       }}
       className={cn(
-        "relative z-50 mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between self-start rounded-full bg-white/5 border border-white/10 shadow-lg px-4 py-2 lg:hidden dark:bg-black/10 dark:border-white/10 backdrop-blur-[16px]",
-        visible && "bg-white/10 dark:bg-black/20",
+        "relative z-50 mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between self-start rounded-full border border-[rgba(255,153,0,0.18)] bg-[rgba(15,12,8,0.72)] shadow-lg px-4 py-2 backdrop-blur-[16px] lg:hidden",
+        visible && "bg-[rgba(15,12,8,0.82)]",
         className,
       )}
       style={{ overflow: "visible" }}
@@ -248,12 +250,12 @@ export const MobileNavMenu = ({
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
             className={cn(
-              "absolute inset-x-0 top-[calc(100%+0.75rem)] z-50 flex w-full flex-col items-start justify-start gap-1 rounded-2xl bg-bg/95 backdrop-blur-xl border border-white/10 p-3 shadow-[0_8px_40px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)_inset]",
+              "absolute inset-x-0 top-[calc(100%+0.75rem)] z-50 flex w-full flex-col items-start justify-start gap-1 rounded-2xl border border-[rgba(255,153,0,0.25)] bg-[#0F0C08]/95 p-3 shadow-[0_8px_40px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,153,0,0.08)_inset] backdrop-blur-xl",
               className,
             )}
           >
             {/* Decorative top accent */}
-            <div className="mx-auto mb-2 h-[2px] w-12 rounded-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            <div className="mx-auto mb-2 h-[2px] w-12 rounded-full bg-gradient-to-r from-transparent via-[#FF9900]/70 to-transparent" />
             {/* Stagger children (nav items) with cascading entrance */}
             <div className="flex w-full flex-col gap-1">
               {React.Children.map(children, (child, index) => (
@@ -287,7 +289,7 @@ export const MobileNavToggle = ({
   return (
     <button
       onClick={onClick}
-      className="relative z-20 flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200 hover:bg-white/10 active:scale-90"
+      className="relative z-20 flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200 hover:bg-[rgba(255,153,0,0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900] active:scale-90"
       aria-label={isOpen ? "Close menu" : "Open menu"}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -321,7 +323,7 @@ export const NavbarLogo = ({ visible }: { visible?: boolean }) => {
   return (
     <a
       href="/"
-      className="relative z-20 mr-4 flex items-center space-x-2.5 px-1 py-1 text-sm font-normal"
+      className="relative z-20 mr-4 flex items-center space-x-2.5 rounded-xl px-1 py-1 text-sm font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900]"
     >
       <div className="relative bg-black/40 border rounded-xl flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 p-1.5 overflow-hidden shrink-0">
 
@@ -388,11 +390,10 @@ export const NavbarButton = ({
   | React.ComponentPropsWithoutRef<"button">
 )) => {
   const baseStyles =
-    "px-5 py-2 rounded-full text-[13px] font-semibold relative cursor-pointer hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 inline-block text-center tracking-wide overflow-hidden group";
-
+    "px-5 py-2 rounded-full text-[13px] font-semibold relative cursor-pointer hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 inline-block text-center tracking-wide overflow-hidden group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900]";
   const variantStyles = {
     primary:
-      "bg-gradient-to-r from-primary via-purple-600 to-purple-500 text-white shadow-[0_2px_12px_rgba(124,58,237,0.3)] hover:shadow-[0_4px_22px_rgba(124,58,237,0.55)] hover:scale-[1.04] border border-white/20 hover:border-white/40",
+      "border border-[rgba(255,153,0,0.25)] bg-[#FF9900] text-[#070604] shadow-[0_2px_12px_rgba(255,153,0,0.3)] hover:border-[rgba(255,153,0,0.45)] hover:bg-[#E68A00] hover:shadow-[0_4px_22px_rgba(255,153,0,0.55)] hover:scale-[1.04]",
     secondary: "bg-transparent shadow-none dark:text-white",
     dark: "bg-black text-white shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset]",
     gradient:
@@ -405,7 +406,7 @@ export const NavbarButton = ({
       className={cn(baseStyles, variantStyles[variant], className)}
       {...props}
     >
-      <span className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <span className="pointer-events-none absolute inset-0 bg-[#FFB733]/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <span className="relative z-10">{children}</span>
     </Tag>
   );

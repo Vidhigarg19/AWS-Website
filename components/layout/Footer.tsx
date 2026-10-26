@@ -35,10 +35,10 @@ const FOOTER_LINKS = [
   {
     heading: "Connect",
     links: [
-      { label: "Meetup", href: "https://www.meetup.com/tulas-university-dehradun/", hoverClass: "group-hover:text-[#F64060]", arrowColor: "group-hover:text-[#F64060]" },
-      { label: "WhatsApp Community", href: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4", hoverClass: "group-hover:text-[#25D366]", arrowColor: "group-hover:text-[#25D366]" },
-      { label: "LinkedIn", href: "https://www.linkedin.com/company/aws-tulas/", hoverClass: "group-hover:text-[#0A66C2]", arrowColor: "group-hover:text-[#0A66C2]" },
-      { label: "Instagram", href: "https://www.instagram.com/aws.sbgtulas", hoverClass: "group-hover:text-[#E4405F]", arrowColor: "group-hover:text-[#E4405F]" },
+      { label: "Meetup", href: "https://www.meetup.com/tulas-university-dehradun/", hoverClass: "group-hover:text-[#FF9900]", arrowColor: "group-hover:text-[#FF9900]" },
+      { label: "WhatsApp Community", href: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4", hoverClass: "group-hover:text-[#FF9900]", arrowColor: "group-hover:text-[#FF9900]" },
+      { label: "LinkedIn", href: "https://www.linkedin.com/company/aws-tulas/", hoverClass: "group-hover:text-[#FF9900]", arrowColor: "group-hover:text-[#FF9900]" },
+      { label: "Instagram", href: "https://www.instagram.com/aws.sbgtulas", hoverClass: "group-hover:text-[#FF9900]", arrowColor: "group-hover:text-[#FF9900]" },
       { label: "Email Us", href: "mailto:awssbg@tulas.edu.in", hoverClass: "group-hover:text-[#FF9900]", arrowColor: "group-hover:text-[#FF9900]" },
     ],
   },
@@ -77,31 +77,31 @@ const SOCIALS = [
     icon: MeetupIcon,
     href: "https://www.meetup.com/tulas-university-dehradun/",
     label: "Meetup",
-    hoverClass: "hover:text-[#F64060] hover:bg-[#F64060]/15 hover:border-[#F64060]/40 hover:shadow-[0_0_15px_rgba(246,64,96,0.35)]",
+    hoverClass: "hover:text-[#FF9900] hover:bg-[rgba(255,153,0,0.12)] hover:border-[rgba(255,153,0,0.25)] hover:shadow-[0_0_15px_rgba(255,153,0,0.35)]",
   },
   {
     icon: WhatsAppIcon,
     href: "https://chat.whatsapp.com/Dy6s9Lo9rFpLNbrMkgUgQ6?s=cl&p=a&mlu=4&ilr=4",
     label: "WhatsApp Community",
-    hoverClass: "hover:text-[#25D366] hover:bg-[#25D366]/15 hover:border-[#25D366]/40 hover:shadow-[0_0_15px_rgba(37,211,102,0.35)]",
+    hoverClass: "hover:text-[#FF9900] hover:bg-[rgba(255,153,0,0.12)] hover:border-[rgba(255,153,0,0.25)] hover:shadow-[0_0_15px_rgba(255,153,0,0.35)]",
   },
   {
     icon: Linkedin,
     href: "https://www.linkedin.com/company/aws-tulas/",
     label: "LinkedIn",
-    hoverClass: "hover:text-[#0A66C2] hover:bg-[#0A66C2]/15 hover:border-[#0A66C2]/40 hover:shadow-[0_0_15px_rgba(10,102,194,0.35)]",
+    hoverClass: "hover:text-[#FF9900] hover:bg-[rgba(255,153,0,0.12)] hover:border-[rgba(255,153,0,0.25)] hover:shadow-[0_0_15px_rgba(255,153,0,0.35)]",
   },
   {
     icon: Instagram,
     href: "https://www.instagram.com/aws.sbgtulas",
     label: "Instagram",
-    hoverClass: "hover:text-[#E4405F] hover:bg-[#E4405F]/15 hover:border-[#E4405F]/40 hover:shadow-[0_0_15px_rgba(228,64,95,0.35)]",
+    hoverClass: "hover:text-[#FF9900] hover:bg-[rgba(255,153,0,0.12)] hover:border-[rgba(255,153,0,0.25)] hover:shadow-[0_0_15px_rgba(255,153,0,0.35)]",
   },
   {
     icon: Mail,
     href: "mailto:awssbg@tulas.edu.in",
     label: "Email",
-    hoverClass: "hover:text-[#FF9900] hover:bg-[#FF9900]/15 hover:border-[#FF9900]/40 hover:shadow-[0_0_15px_rgba(255,153,0,0.35)]",
+    hoverClass: "hover:text-[#FF9900] hover:bg-[rgba(255,153,0,0.12)] hover:border-[rgba(255,153,0,0.25)] hover:shadow-[0_0_15px_rgba(255,153,0,0.35)]",
   },
 ];
 
@@ -161,11 +161,11 @@ export function Footer() {
   }
 
   return (
-    <footer ref={footerRef} className="relative z-10 border-t border-white/[0.05] bg-bg overflow-hidden">
+    <footer ref={footerRef} className="relative z-10 border-t border-[rgba(255,153,0,0.15)] bg-[#070604] overflow-hidden">
       {/* Decorative gradient blur */}
       <div
         aria-hidden
-        className="footer-glow pointer-events-none absolute left-1/2 top-0 h-[300px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[120px]"
+        className="footer-glow pointer-events-none absolute left-1/2 top-0 h-[300px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(255,153,0,0.12)] blur-[120px]"
       />
       <div className="relative mx-auto max-w-content px-4 sm:px-6 pb-12 pt-16 md:pt-20">
         <div className="grid gap-12 lg:gap-16 lg:grid-cols-12">
@@ -174,14 +174,14 @@ export function Footer() {
           <div className="footer-brand-col flex flex-col gap-6 lg:col-span-5">
             <Link
               href="/"
-              className="flex items-center gap-3 font-display text-lg font-semibold tracking-tight text-text-primary transition-opacity hover:opacity-80 w-fit"
+              className="flex w-fit items-center gap-3 rounded-xl font-display text-lg font-semibold tracking-tight text-white transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900]"
             >
               <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-white/[0.05] p-1.5 ring-1 ring-white/10">
                 <Image src="/logos/SBG_logo.png" alt="AWS SBG Logo" fill className="object-contain p-1" />
               </div>
               AWS Student Builder Group
             </Link>
-            <p className="max-w-[320px] text-[15px] leading-relaxed text-text-secondary">
+            <p className="max-w-[320px] text-[15px] leading-relaxed text-white/65">
               A student-led community at Tulas University, Dehradun dedicated to building,
               learning, and deploying real-world applications on AWS.
             </p>
@@ -191,21 +191,21 @@ export function Footer() {
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-7 lg:pl-10">
             {FOOTER_LINKS.map((col) => (
               <div key={col.heading} className="footer-link-col">
-                <h4 className="font-display text-[15px] font-semibold text-text-primary">{col.heading}</h4>
+                <h4 className="font-display text-[15px] font-semibold text-white">{col.heading}</h4>
                 <ul className="mt-5 flex flex-col gap-3.5">
                   {col.links.map((link) => {
                     const isExternal = link.href.startsWith("http") || link.href.startsWith("mailto");
-                    const hoverClass = (link as any).hoverClass || "group-hover:text-primary-light";
-                    const arrowColor = (link as any).arrowColor || "group-hover:text-primary-light";
+                    const hoverClass = (link as any).hoverClass || "group-hover:text-[#FF9900]";
+                    const arrowColor = (link as any).arrowColor || "group-hover:text-[#FF9900]";
                     return (
                       <li key={link.label}>
                         {isExternal ? (
-                          <a href={link.href} target="_blank" rel="noopener noreferrer" className="group flex w-fit items-center gap-1.5 text-[14px] text-text-secondary transition-colors">
+                          <a href={link.href} target="_blank" rel="noopener noreferrer" className="group flex w-fit items-center gap-1.5 text-[14px] text-white/65 transition-colors hover:text-[#FF9900] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900]">
                             <span className={`transition-all duration-200 ${hoverClass}`}>{link.label}</span>
                             <ArrowRight size={14} className={`-translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 ${arrowColor}`} animateOnHover />
                           </a>
                         ) : (
-                          <Link href={link.href} className="group flex w-fit items-center gap-1.5 text-[14px] text-text-secondary transition-colors">
+                          <Link href={link.href} className="group flex w-fit items-center gap-1.5 text-[14px] text-white/65 transition-colors hover:text-[#FF9900] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900]">
                             <span className={`transition-all duration-200 ${hoverClass}`}>{link.label}</span>
                             <ArrowRight size={14} className={`-translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 ${arrowColor}`} animateOnHover />
                           </Link>
@@ -220,18 +220,18 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="footer-bottom-bar mt-20 flex flex-col items-center justify-between gap-6 border-t border-white/[0.05] pt-8 sm:flex-row">
+        <div className="footer-bottom-bar mt-20 flex flex-col items-center justify-between gap-6 border-t border-[rgba(255,153,0,0.15)] pt-8 sm:flex-row">
           <div className="flex items-center gap-4">
             {SOCIALS.map((social) => {
               const Icon = social.icon;
               return (
-                <a key={social.label} href={social.href} aria-label={social.label} target="_blank" rel="noopener noreferrer" className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/5 bg-white/[0.03] text-text-secondary transition-all duration-300 ${social.hoverClass}`}>
+                <a key={social.label} href={social.href} aria-label={social.label} target="_blank" rel="noopener noreferrer" className={`flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(255,153,0,0.25)] bg-[rgba(255,153,0,0.06)] text-white/65 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900] ${social.hoverClass}`}>
                   <Icon size={16} />
                 </a>
               );
             })}
           </div>
-          <p className="text-[13px] text-muted">
+          <p className="text-[13px] text-white/65">
             © {new Date().getFullYear()}&nbsp;&nbsp;AWS SBG, Tulas University. All rights reserved.
           </p>
         </div>

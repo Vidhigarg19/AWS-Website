@@ -53,7 +53,6 @@ export function Team() {
             <div aria-hidden="true" className="absolute bottom-0 left-1/2 h-44 w-44 -translate-x-1/2 rotate-[-8deg] rounded-[2.5rem] border border-[var(--accent-border)] bg-[linear-gradient(145deg,rgba(255,153,0,0.14),rgba(28,23,13,0.52))]" />
             <div className="absolute inset-x-[10%] bottom-0 top-[7%]">
               <TeamMascot
-                variant="footer"
                 alt="Kio waving goodbye to the AWS Student Builder Group community"
                 className="object-contain object-bottom"
               />

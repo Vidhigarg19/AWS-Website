@@ -33,7 +33,6 @@ type TeamDirectoryMember = Omit<DbTeamMember, "role"> &
     github?: string;
     linkedin?: string;
     email?: string;
-    portfolio?: string;
   } | null;
   github?: string | null;
   linkedin?: string | null;
@@ -179,12 +178,6 @@ function MemberCard({
   );
 }
 
-function getWingBadge(role: WingRole) {
-  if (role === "lead") return "Wing Lead";
-  if (role === "co-lead") return "Co-Lead";
-  return "Member";
-}
-
 function WingOverviewCard({
   wing,
   members,
@@ -246,17 +239,6 @@ export function TeamRosterRedesign() {
         if (isActive) {
           setMembers(result.data);
           setLoadError(false);
-          if (process.env.NODE_ENV === "development") {
-            const membersPerBatch = result.data.reduce<Record<string, number>>((counts, member) => {
-              const batch = normalizeTeamBatch(member.batch);
-              counts[batch] = (counts[batch] ?? 0) + 1;
-              return counts;
-            }, {});
-            console.info(
-              `[Team] Fetched ${result.data.length} team members; per batch:`,
-              membersPerBatch
-            );
-          }
         }
       } catch (error) {
         console.error("Failed to load team member directory:", error);
@@ -300,36 +282,6 @@ export function TeamRosterRedesign() {
       }, 0),
     [grouped]
   );
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development" || isLoading || loadError) return;
-    const sections = {
-      core: grouped.core.length,
-      ...Object.fromEntries(
-        TEAM_WINGS.map((wing) => {
-          const membersInWing = grouped.wings[wing.key];
-          return [
-            wing.name,
-            membersInWing.leads.length + membersInWing.coLeads.length + membersInWing.members.length,
-          ];
-        })
-      ),
-    };
-    console.info(`[Team] Batch ${activeBatch} members per section:`, sections);
-
-    const actualRenderedCount =
-      sectionRef.current?.querySelectorAll("[data-team-member-id]").length ?? 0;
-    if (actualRenderedCount !== batchMembers.length) {
-      console.warn(
-        `[Team] Rendered ${actualRenderedCount} member cards for batch ${activeBatch}; expected ${batchMembers.length}.`
-      );
-    }
-    if (renderedMemberCount !== batchMembers.length) {
-      console.warn(
-        `[Team] Grouped ${renderedMemberCount} members for batch ${activeBatch}; expected ${batchMembers.length}.`
-      );
-    }
-  }, [activeBatch, batchMembers.length, grouped, isLoading, loadError, renderedMemberCount]);
 
   useGSAP(
     () => {

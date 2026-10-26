@@ -199,7 +199,6 @@ export function TeamLeadershipRedesign() {
           />
           <div className="team-lead-mascot absolute inset-x-[8%] bottom-0 top-[8%]">
             <TeamMascot
-              variant="leadership"
               alt="Kio celebrating the AWS Student Builder Group leaders"
               className="object-contain object-bottom"
             />

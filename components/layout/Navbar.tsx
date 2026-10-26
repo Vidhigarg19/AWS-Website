@@ -87,7 +87,11 @@ export function Navbar() {
                 key={`mobile-link-${idx}`}
                 href={item.link}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="relative w-full rounded-xl px-4 py-3 text-[15px] font-medium text-text-secondary transition-colors transition-transform duration-200 hover:bg-white/5 hover:text-text-primary active:scale-[0.98]"
+                className={`relative w-full rounded-xl px-4 py-3 text-[15px] font-medium transition-colors transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF9900] active:scale-[0.98] ${
+                  pathname === item.link
+                    ? "bg-[rgba(255,153,0,0.15)] text-[#FF9900]"
+                    : "text-white/65 hover:bg-[rgba(255,153,0,0.12)] hover:text-[#FF9900]"
+                }`}
               >
                 <span className="block">{item.name}</span>
               </Link>

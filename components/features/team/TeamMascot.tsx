@@ -3,7 +3,6 @@
 import Image from "next/image";
 
 type TeamMascotProps = {
-  variant: "hero" | "leadership" | "wings" | "faq" | "footer";
   alt: string;
   className?: string;
 };

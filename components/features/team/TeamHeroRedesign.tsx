@@ -103,7 +103,6 @@ export function TeamHeroRedesign() {
           />
           <div className="team-hero-mascot absolute inset-x-[13%] bottom-0 top-[10%]">
             <TeamMascot
-              variant="hero"
               alt="Kio waving to welcome visitors to the AWS Student Builder Group team"
               className="object-contain object-bottom drop-shadow-[0_18px_30px_rgba(0,0,0,0.45)]"
             />

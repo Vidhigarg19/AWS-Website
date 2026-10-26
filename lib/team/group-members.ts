@@ -40,7 +40,7 @@ export interface TeamMemberForGrouping {
   [field: string]: unknown;
 }
 
-export interface GroupedTeamMembers<T> {
+interface GroupedTeamMembers<T> {
   core: T[];
   wings: Record<TeamWingKey, { leads: T[]; coLeads: T[]; members: T[] }>;
 }
@@ -83,7 +83,7 @@ export function normalizeTeamBatch(value: string | null | undefined): string {
   return batch || "2026-27";
 }
 
-export function getWingRole(roleValue: string | null | undefined): WingRole {
+function getWingRole(roleValue: string | null | undefined): WingRole {
   const role = normalize(roleValue ?? "");
   if (/\bco\b.*\blead\b/.test(role)) return "co-lead";
   if (/\blead\b/.test(role)) {

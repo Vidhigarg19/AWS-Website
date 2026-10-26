@@ -48,7 +48,8 @@ export interface GroupedTeamMembers<T> {
 function normalize(value: string): string {
   return value
     .toLowerCase()
-    .replace(/[.&/()-]+/g, " ")
+    .replace(/[.-]+/g, " ")
+    .replace(/[&/()]+/g, " ")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -57,43 +58,44 @@ function normalize(value: string): string {
 function wingFromText(value: string): TeamWingKey | undefined {
   const text = normalize(value);
 
-  if (
-    /\b(public relations|pr|outreach)\b/.test(text) ||
-    /\bmedia\b/.test(text) && /\bpr\b/.test(text)
-  ) {
-    return "public-relations";
-  }
-  if (/\b(events?|event ops|operations|ops)\b/.test(text)) {
+  if (text.includes("event")) {
     return "events-ops";
   }
-  if (/\b(media|design)\b/.test(text)) {
+  if (text.includes("media") || text.includes("design")) {
     return "media";
   }
-  if (/\b(technology|technical|tech|cloud)\b/.test(text)) {
+  if (text.includes("tech") || text.includes("cloud")) {
     return "technology";
+  }
+  if (/\bpr\b|\bpublic relations?\b|\boutreach\b/.test(text)) {
+    return "public-relations";
   }
 
   return undefined;
 }
 
-function isCoreRole(role: string): boolean {
-  return /^(leader|group leader|builder group leader|vice leader|vice group leader|secretary|treasurer)$/.test(
-    normalize(role)
-  );
+export function normalizeTeamBatch(value: string | null | undefined): string {
+  const batch = (value ?? "")
+    .trim()
+    .replace(/^batch\s*/i, "")
+    .replace(/\s+/g, "");
+
+  return batch || "2026-27";
 }
 
 export function getWingRole(roleValue: string | null | undefined): WingRole {
   const role = normalize(roleValue ?? "");
-  if (/\bco\s+(technical|technology|tech|event|events|ops|operations|media|pr|public relations|outreach)\s+lead\b/.test(role)) {
-    return "co-lead";
-  }
-  if (/\b(co lead|colead)\b/.test(role)) {
-    return "co-lead";
-  }
-  if (/\b(lead|leader)\b/.test(role)) {
+  if (/\bco\b.*\blead\b/.test(role)) return "co-lead";
+  if (/\blead\b/.test(role)) {
     return "lead";
   }
   return "member";
+}
+
+function isCoreRole(roleValue: string): boolean {
+  return /^(leader|group leader|builder group leader|vice leader|vice group leader|secretary|treasurer)$/.test(
+    normalize(roleValue)
+  );
 }
 
 export function groupTeamMembers<T extends TeamMemberForGrouping>(
@@ -116,12 +118,11 @@ export function groupTeamMembers<T extends TeamMemberForGrouping>(
       continue;
     }
 
-    const roleWing = wingFromText(role);
-    const wingValue = [member.wing, member.wing_name, member.department]
+    const explicitWing = [member.wing, member.wing_name, member.department]
       .filter((value): value is string => typeof value === "string")
       .map(wingFromText)
       .find((wing): wing is TeamWingKey => Boolean(wing));
-    const wing = roleWing ?? wingValue;
+    const wing = explicitWing ?? wingFromText(role);
 
     if (!wing) {
       grouped.core.push(member);

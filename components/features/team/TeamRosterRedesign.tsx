@@ -17,12 +17,12 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { DbTeamMember } from "@/types/certificate";
 import {
   groupTeamMembers,
+  normalizeTeamBatch,
   TEAM_WINGS,
   type TeamMemberForGrouping,
   type TeamWingKey,
   type WingRole,
 } from "@/lib/team/group-members";
-import { TeamMascot } from "./TeamMascot";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -227,6 +227,7 @@ export function TeamRosterRedesign() {
   const [members, setMembers] = useState<TeamDirectoryMember[]>([]);
   const [activeBatch, setActiveBatch] = useState("2026-27");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -242,9 +243,24 @@ export function TeamRosterRedesign() {
         if (!result.success || !Array.isArray(result.data)) {
           throw new Error(result.error || "The team member response was invalid.");
         }
-        if (isActive) setMembers(result.data);
+        if (isActive) {
+          setMembers(result.data);
+          setLoadError(false);
+          if (process.env.NODE_ENV === "development") {
+            const membersPerBatch = result.data.reduce<Record<string, number>>((counts, member) => {
+              const batch = normalizeTeamBatch(member.batch);
+              counts[batch] = (counts[batch] ?? 0) + 1;
+              return counts;
+            }, {});
+            console.info(
+              `[Team] Fetched ${result.data.length} team members; per batch:`,
+              membersPerBatch
+            );
+          }
+        }
       } catch (error) {
         console.error("Failed to load team member directory:", error);
+        if (isActive) setLoadError(true);
       } finally {
         if (isActive) setIsLoading(false);
       }
@@ -259,7 +275,7 @@ export function TeamRosterRedesign() {
   const batches = useMemo(
     () =>
       Array.from(
-        new Set(members.map((member) => member.batch?.trim()).filter((batch): batch is string => Boolean(batch)))
+        new Set(members.map((member) => normalizeTeamBatch(member.batch)))
       ).sort((left, right) => right.localeCompare(left)),
     [members]
   );
@@ -271,7 +287,7 @@ export function TeamRosterRedesign() {
   }, [activeBatch, batches]);
 
   const batchMembers = useMemo(
-    () => members.filter((member) => (member.batch || "2026-27") === activeBatch),
+    () => members.filter((member) => normalizeTeamBatch(member.batch) === activeBatch),
     [activeBatch, members]
   );
   const grouped = useMemo(() => groupTeamMembers(batchMembers), [batchMembers]);
@@ -286,7 +302,21 @@ export function TeamRosterRedesign() {
   );
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production" || isLoading) return;
+    if (process.env.NODE_ENV !== "development" || isLoading || loadError) return;
+    const sections = {
+      core: grouped.core.length,
+      ...Object.fromEntries(
+        TEAM_WINGS.map((wing) => {
+          const membersInWing = grouped.wings[wing.key];
+          return [
+            wing.name,
+            membersInWing.leads.length + membersInWing.coLeads.length + membersInWing.members.length,
+          ];
+        })
+      ),
+    };
+    console.info(`[Team] Batch ${activeBatch} members per section:`, sections);
+
     const actualRenderedCount =
       sectionRef.current?.querySelectorAll("[data-team-member-id]").length ?? 0;
     if (actualRenderedCount !== batchMembers.length) {
@@ -294,7 +324,12 @@ export function TeamRosterRedesign() {
         `[Team] Rendered ${actualRenderedCount} member cards for batch ${activeBatch}; expected ${batchMembers.length}.`
       );
     }
-  }, [activeBatch, batchMembers.length, isLoading, renderedMemberCount]);
+    if (renderedMemberCount !== batchMembers.length) {
+      console.warn(
+        `[Team] Grouped ${renderedMemberCount} members for batch ${activeBatch}; expected ${batchMembers.length}.`
+      );
+    }
+  }, [activeBatch, batchMembers.length, grouped, isLoading, loadError, renderedMemberCount]);
 
   useGSAP(
     () => {
@@ -335,7 +370,7 @@ export function TeamRosterRedesign() {
           <div className="flex flex-wrap gap-2">
             {batches.map((batch) => {
               const selected = activeBatch === batch;
-              const count = members.filter((member) => (member.batch || "2026-27") === batch).length;
+              const count = members.filter((member) => normalizeTeamBatch(member.batch) === batch).length;
               const isCurrent = batch === "2026-27";
               return (
                 <button
@@ -361,12 +396,28 @@ export function TeamRosterRedesign() {
           <p className="text-xs text-white/55">
             {isLoading
               ? "Loading team members…"
-              : `Showing ${batchMembers.length} builders in Batch ${activeBatch}`}
+              : loadError
+                ? "The team directory is temporarily unavailable."
+                : `Showing ${batchMembers.length} builders in Batch ${activeBatch}`}
           </p>
         </div>
       </section>
 
-      {isLoading ? null : batchMembers.length === 0 ? (
+      {isLoading ? null : loadError ? (
+        <section
+          role="status"
+          className="mx-auto max-w-7xl px-5 pb-12 sm:px-8 lg:px-10"
+        >
+          <div className="rounded-2xl border border-dashed border-[var(--accent-border)] bg-[var(--surface)] px-5 py-10 text-center">
+            <p className="font-display text-lg font-semibold text-white">
+              Team members are coming soon
+            </p>
+            <p className="mt-2 text-sm text-white/55">
+              We couldn&apos;t load the directory right now. Please try again soon.
+            </p>
+          </div>
+        </section>
+      ) : batchMembers.length === 0 ? (
         <section
           role="status"
           className="mx-auto max-w-7xl px-5 pb-12 sm:px-8 lg:px-10"
@@ -419,7 +470,7 @@ export function TeamRosterRedesign() {
           >
             <div className="team-roster-reveal max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.22em] text-[var(--accent)] sm:text-xs">
-                COHORT 2026
+                WING TEAMS · BATCH {activeBatch}
               </p>
               <h2 id="team-wings-title" className="mt-3 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
                 See Our <span className="text-[var(--accent)]">Builder Wings.</span>
@@ -437,15 +488,6 @@ export function TeamRosterRedesign() {
                   );
                 })} />
               ))}
-            </div>
-            <div className="team-roster-reveal relative mx-auto mt-8 flex min-h-[210px] w-full max-w-[260px] items-end justify-center">
-              <div aria-hidden="true" className="absolute bottom-2 left-1/2 h-40 w-40 -translate-x-1/2 rotate-[8deg] rounded-[2.5rem] border border-[var(--accent-border)] bg-[linear-gradient(145deg,rgba(255,153,0,0.14),rgba(28,23,13,0.52))]" />
-              <div className="absolute inset-x-[10%] bottom-0 top-[7%]">
-                <TeamMascot variant="wings" alt="Kio helping visitors choose a Builder Wing" className="object-contain object-bottom" />
-              </div>
-              <p className="absolute right-0 top-0 rounded-2xl rounded-br-sm border border-[var(--accent-border)] bg-[var(--surface)] px-4 py-3 text-sm font-medium text-white shadow-xl">
-                Which wing is yours?
-              </p>
             </div>
           </section>
 
@@ -508,7 +550,7 @@ export function TeamRosterRedesign() {
                       <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
                         {wingMembers.members.map((member) => (
                           <div className="team-roster-reveal min-w-0" key={member.id}>
-                            <MemberCard member={member} badge="Member" badgeType="member" isWingCard />
+                                    <MemberCard member={member} badge={member.role || "Member"} badgeType="member" isWingCard />
                           </div>
                         ))}
                       </div>

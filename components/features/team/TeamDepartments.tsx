@@ -4,7 +4,6 @@ import React from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Sparkles } from "lucide-react";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -63,13 +62,6 @@ export function TeamDepartments() {
 
           {/* CTAs */}
           <div className="team-dept-el flex flex-col sm:flex-row items-center gap-3">
-            <a
-              href="/register"
-              className="group relative px-8 py-3.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm overflow-hidden shadow-[0_0_28px_-5px_rgba(124,58,237,0.6)] hover:shadow-[0_0_40px_-5px_rgba(124,58,237,0.85)] transition-all duration-300 hover:scale-[1.03]"
-            >
-              <span className="relative z-10">Apply Now →</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-primary via-purple-500 to-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
             <a
               href="/team"
               className="px-8 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-white/[0.2] text-text-secondary hover:text-text-primary font-semibold text-sm transition-all duration-200 backdrop-blur-sm"

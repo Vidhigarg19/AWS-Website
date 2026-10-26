@@ -128,25 +128,32 @@ export function TeamLeadershipRedesign() {
     () => {
       const media = gsap.matchMedia();
       media.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          ".team-lead-reveal",
-          { y: 20, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.65,
-            stagger: 0.12,
-            ease: "power2.out",
-            scrollTrigger: { trigger: sectionRef.current, start: "top 82%" },
-          }
-        );
-        gsap.to(".team-lead-mascot", {
-          y: -7,
-          duration: 3.4,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-        });
+        const revealTargets = sectionRef.current?.querySelectorAll<HTMLElement>(".team-lead-reveal");
+        if (revealTargets?.length) {
+          gsap.fromTo(
+            revealTargets,
+            { y: 20, opacity: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              duration: 0.65,
+              stagger: 0.12,
+              ease: "power2.out",
+              scrollTrigger: { trigger: sectionRef.current, start: "top 82%" },
+            }
+          );
+        }
+
+        const mascot = sectionRef.current?.querySelector<HTMLElement>(".team-lead-mascot");
+        if (mascot) {
+          gsap.to(mascot, {
+            y: -7,
+            duration: 3.4,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+          });
+        }
       });
       return () => media.revert();
     },

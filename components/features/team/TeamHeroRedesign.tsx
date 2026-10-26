@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { TEAM_WINGS } from "@/lib/team/group-members";
 import { TeamMascot } from "./TeamMascot";
 
 export function TeamHeroRedesign() {
@@ -12,18 +13,25 @@ export function TeamHeroRedesign() {
     () => {
       const media = gsap.matchMedia();
       media.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          ".team-hero-reveal",
-          { y: 22, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.7, stagger: 0.1, ease: "power2.out" }
-        );
-        gsap.to(".team-hero-mascot", {
-          y: -8,
-          duration: 3.2,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-        });
+        const revealTargets = heroRef.current?.querySelectorAll<HTMLElement>(".team-hero-reveal");
+        if (revealTargets?.length) {
+          gsap.fromTo(
+            revealTargets,
+            { y: 22, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.7, stagger: 0.1, ease: "power2.out" }
+          );
+        }
+
+        const mascot = heroRef.current?.querySelector<HTMLElement>(".team-hero-mascot");
+        if (mascot) {
+          gsap.to(mascot, {
+            y: -8,
+            duration: 3.2,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+          });
+        }
       });
       return () => media.revert();
     },
@@ -58,7 +66,7 @@ export function TeamHeroRedesign() {
             <span className="text-[var(--accent)]">AWS Builders.</span>
           </h1>
           <p className="team-hero-reveal mx-auto mt-5 max-w-xl text-sm leading-7 text-white/60 sm:text-base lg:mx-0">
-            Community leaders and six specialized Builder Wings, united by one goal: learn, build and grow together.
+            Community leaders and {TEAM_WINGS.length} specialized Builder Wings, united by one goal: learn, build and grow together.
           </p>
 
           <div className="team-hero-reveal mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
@@ -77,7 +85,7 @@ export function TeamHeroRedesign() {
           </div>
 
           <div className="team-hero-reveal mt-7 flex flex-wrap justify-center gap-2 lg:justify-start">
-            {["6 Builder Wings", "2026 Core Team", "All Branches"].map((chip) => (
+            {[`${TEAM_WINGS.length} Builder Wings`, "2026 Core Team", "All Branches"].map((chip) => (
               <span
                 key={chip}
                 className="inline-flex min-h-10 items-center rounded-full border border-white/10 bg-white/[0.035] px-4 text-xs text-white/70"

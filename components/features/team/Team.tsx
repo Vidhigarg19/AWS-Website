@@ -3,12 +3,10 @@
 import * as React from "react";
 
 import { TeamHeroRedesign } from "./TeamHeroRedesign";
-import { TeamSelectionRoadmap } from "./TeamSelectionRoadmap";
-import { TeamWingsRedesign } from "./TeamWingsRedesign";
 import { TeamLeadershipRedesign } from "./TeamLeadershipRedesign";
-import { TeamMembersDirectory } from "./TeamMembersDirectory";
+import { TeamRosterRedesign } from "./TeamRosterRedesign";
 import { TeamFAQ } from "./TeamFAQ";
-import { TeamCTA } from "./TeamCTA";
+import { TeamMascot } from "./TeamMascot";
 
 export function Team() {
   return (
@@ -37,32 +35,34 @@ export function Team() {
       <div className="relative z-10">
         <TeamHeroRedesign />
 
-        {/* ─── Content Sections ────────────────────────── */}
-        <div className="relative">
-          <div className="border-t border-border/40">
-            <TeamSelectionRoadmap />
-          </div>
-
-          <div className="border-t border-border/40">
-            <TeamWingsRedesign />
-          </div>
-
-          <div className="border-t border-border/40">
-            <TeamLeadershipRedesign />
-          </div>
-
-          <div className="border-t border-border/40">
-            <TeamMembersDirectory />
-          </div>
-
-          <div className="border-t border-border/40">
-            <TeamFAQ />
-          </div>
+        <div className="border-t border-white/[0.08]">
+          <TeamLeadershipRedesign />
         </div>
-
-        <div className="relative border-t border-border/40">
-          <TeamCTA />
+        <div className="border-t border-white/[0.08]">
+          <TeamRosterRedesign />
         </div>
+        <div className="border-t border-white/[0.08]">
+          <TeamFAQ />
+        </div>
+        <section
+          aria-label="Team closing"
+          className="relative mx-auto flex min-h-[250px] max-w-7xl items-center justify-center overflow-hidden px-5 py-10 sm:min-h-[300px] sm:px-8 lg:px-10"
+        >
+          <div aria-hidden="true" className="absolute inset-x-1/4 bottom-0 h-32 rounded-full bg-[var(--accent-soft)] blur-[90px]" />
+          <div className="relative flex min-h-[220px] w-full max-w-[300px] items-end justify-center">
+            <div aria-hidden="true" className="absolute bottom-0 left-1/2 h-44 w-44 -translate-x-1/2 rotate-[-8deg] rounded-[2.5rem] border border-[var(--accent-border)] bg-[linear-gradient(145deg,rgba(255,153,0,0.14),rgba(28,23,13,0.52))]" />
+            <div className="absolute inset-x-[10%] bottom-0 top-[7%]">
+              <TeamMascot
+                variant="footer"
+                alt="Kio waving goodbye to the AWS Student Builder Group community"
+                className="object-contain object-bottom"
+              />
+            </div>
+            <p className="absolute right-0 top-0 rounded-2xl rounded-br-sm border border-[var(--accent-border)] bg-[var(--surface)] px-4 py-3 text-sm font-medium text-white shadow-xl">
+              See you soon!
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );

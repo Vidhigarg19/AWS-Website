@@ -28,13 +28,32 @@ export interface Storage {
 }
 
 let cached: Storage | null = null;
+let warnedNotConfigured = false;
 
-/** Returns null (and logs why) when the S3_* variables are missing or invalid. */
+/**
+ * Returns null when the S3_* variables are missing or invalid.
+ *
+ * S3 is optional: with none of the variables set, public pages still render
+ * (Drive items show, uploaded files are skipped) and the upload routes answer
+ * "Media uploads are not configured." That case logs one warning per process.
+ * A partial or invalid configuration is a real mistake and logs an error.
+ */
 export function getStorage(): Storage | null {
   if (cached) return cached;
   const parsed = parseStorageConfig(process.env);
   if (!parsed.ok) {
-    console.error("[storage]", parsed.error);
+    const nothingSet = ["S3_BUCKET", "S3_REGION", "MEDIA_CDN_URL"].every(
+      (name) => !process.env[name]?.trim()
+    );
+    if (!nothingSet) {
+      console.error("[storage]", parsed.error);
+    } else if (!warnedNotConfigured) {
+      warnedNotConfigured = true;
+      console.warn(
+        "[storage] S3 is not configured (S3_BUCKET, S3_REGION, MEDIA_CDN_URL). " +
+          "Uploads are disabled; Google Drive items still show. See infra/README.md."
+      );
+    }
     return null;
   }
   cached = {

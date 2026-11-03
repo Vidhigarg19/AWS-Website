@@ -10,12 +10,17 @@
 
 import type { PortalRole } from "../auth/roles.ts";
 
+/** True for roles that may manage everyone's uploads, not just their own. */
+export function canManageAllUploads(role: PortalRole): boolean {
+  return role === "super_admin" || role === "admin";
+}
+
 export function canManageUpload(
   role: PortalRole,
   userId: string,
   uploadedBy: string | null
 ): boolean {
-  if (role === "super_admin" || role === "admin") return true;
+  if (canManageAllUploads(role)) return true;
   if (role === "media_manager") return uploadedBy !== null && uploadedBy === userId;
   return false;
 }

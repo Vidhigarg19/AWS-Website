@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requirePortalPage } from "@/lib/auth/require-portal-page";
 import { isUuid } from "@/lib/auth/roles";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { canManageAllUploads } from "@/lib/media/access";
 import { DriveImport } from "@/components/features/media/DriveImport";
 import { Uploader } from "@/components/features/media/Uploader";
 import { MediaList, type MediaListItem } from "@/components/features/media/MediaList";
@@ -68,7 +69,19 @@ export default async function EventMediaPage({
   if (mediaRes.error) console.error("[media] items load error:", mediaRes.error.message);
 
   // Mirrors lib/media/access.ts: admins manage anything, members only their own.
-  const isAdmin = session.role === "super_admin" || session.role === "admin";
+  const isAdmin = canManageAllUploads(session.role);
+
+  // Drive items this user may remove in one go (same filter as /api/media/drive/remove).
+  let driveQuery = db
+    .from("media_items")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", event.id)
+    .eq("source", "drive")
+    .is("deleted_at", null);
+  if (!isAdmin) driveQuery = driveQuery.eq("uploaded_by", session.user.id);
+  const driveRes = await driveQuery;
+  if (driveRes.error) console.error("[media] drive count error:", driveRes.error.message);
+  const removableDriveCount = driveRes.count ?? 0;
   const items: MediaListItem[] = (mediaRes.data ?? []).map((r) => ({
     id: r.id as string,
     kind: r.kind as "image" | "video",
@@ -93,7 +106,7 @@ export default async function EventMediaPage({
       </div>
 
       <Uploader eventId={event.id} />
-      <DriveImport eventId={event.id} />
+      <DriveImport eventId={event.id} removableCount={removableDriveCount} ownOnly={!isAdmin} />
 
       {loadFailed ? (
         <p role="alert" className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">

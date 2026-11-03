@@ -13,6 +13,9 @@ Nothing is copied: the site shows the files straight from Drive.
 - Share the Drive folder as **Anyone with the link, Viewer**.
 - Paste the link, click **Import**. Re-importing the same folder only adds new files.
 - Up to 200 files per import; subfolders and non-photo/video files are skipped.
+- **Remove all Drive files** (under the import box) unlinks every Drive item on that event in one go.
+  Admins remove all of them; media members only the ones they imported. It only removes them from the
+  site: nothing in Google Drive changes, and the folder can be imported again later.
 
 ## Trade-offs (by design)
 - If a file is deleted or unshared in Drive, it disappears from the site.

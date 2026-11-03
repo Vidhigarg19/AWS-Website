@@ -12,6 +12,7 @@ import { formatFullName, cn } from "@/lib/utils";
 import { getAwardTitle } from "@/lib/certificates/award-title";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TopPerformerImportDialog } from "@/components/features/TopPerformerImportDialog";
+import { AttendeeImportDialog } from "@/components/features/AttendeeImportDialog";
 import {
   ArrowRight,
   Calendar,
@@ -204,6 +205,9 @@ function AdminPageContent() {
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("ALL");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deletingParticipantKey, setDeletingParticipantKey] = useState<string | null>(null);
+  // Inline "assign as Top Performer" modal (from the attendee directory).
+  const [rankModal, setRankModal] = useState<{ participant: AdminParticipantRow; rank: string } | null>(null);
+  const [assigningTopPerformer, setAssigningTopPerformer] = useState(false);
   const [topPerformers, setTopPerformers] = useState<TopPerformerRow[]>([]);
   const [topPerformersEvent, setTopPerformersEvent] = useState<{
     id: string;
@@ -789,6 +793,49 @@ function AdminPageContent() {
       throw new Error(json.error || "Could not issue this certificate.");
     }
     return json.data as { certificateId: string };
+  };
+
+  // Assign a participant from the attendee directory as a Top Performer, with a rank.
+  const submitRankAssignment = async () => {
+    if (!rankModal || assigningTopPerformer) return;
+    const { participant, rank } = rankModal;
+    const rankNumber = Number(rank);
+    if (!rank.trim() || !Number.isSafeInteger(rankNumber) || rankNumber < 1) {
+      toast.error("Enter a rank of 1 or higher.");
+      return;
+    }
+    if (!currentViewEvent) {
+      toast.error("Select an event first.");
+      return;
+    }
+
+    setAssigningTopPerformer(true);
+    try {
+      const res = await fetch("/api/admin/top-performers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: currentViewEvent.id,
+          rank: rankNumber,
+          fullName: participant.name,
+          email: participant.email,
+          rollNo: participant.rollNo,
+          course: participant.course,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        throw new Error(typeof json?.error === "string" ? json.error : "Could not assign this top performer.");
+      }
+      toast.success(`${participant.name} assigned as a top performer (rank ${rankNumber}).`);
+      setRankModal(null);
+      // Refresh the top-performers table when the viewed event is the active one.
+      if (currentViewEvent.id === portalConfig?.active_event_id) await fetchTopPerformers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not assign this top performer.");
+    } finally {
+      setAssigningTopPerformer(false);
+    }
   };
 
   const handleIssueTopPerformer = async (topPerformer: TopPerformerRow) => {
@@ -2497,6 +2544,16 @@ function AdminPageContent() {
                       </div>
                     </div>
 
+                    {/* Import attendees from Excel / CSV */}
+                    <AttendeeImportDialog
+                      key={currentViewEvent.id}
+                      eventId={currentViewEvent.id}
+                      eventName={currentViewEvent.name}
+                      eventDate={currentViewEvent.event_date?.trim() ? currentViewEvent.event_date : null}
+                      existingEmails={participants.map((p) => p.email)}
+                      onImported={() => fetchParticipants(currentViewEvent.id)}
+                    />
+
                     {/* Export CSV Button */}
                     <button
                       onClick={handleExportCSV}
@@ -2715,6 +2772,15 @@ function AdminPageContent() {
                                       </button>
                                     </>
                                   )}
+
+                                  {/* Assign as Top Performer */}
+                                  <button
+                                    onClick={() => setRankModal({ participant: p, rank: "" })}
+                                    className="h-7 w-7 rounded-lg bg-white/[0.03] hover:bg-amber-500/20 text-[#71717A] hover:text-amber-400 border border-white/[0.06] hover:border-amber-500/30 flex items-center justify-center transition-colors cursor-pointer"
+                                    title="Assign as Top Performer"
+                                  >
+                                    <Trophy className="w-3.5 h-3.5" />
+                                  </button>
 
                                   {/* Remove participant button */}
                                   <button
@@ -4481,6 +4547,88 @@ function AdminPageContent() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── ASSIGN TOP PERFORMER (RANK) MODAL ───────────── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {rankModal && (
+        <div
+          className="fixed inset-0 z-[60] overflow-y-auto p-2 sm:p-4 flex items-center justify-center overscroll-contain animate-in fade-in duration-150"
+          data-lenis-prevent
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            onClick={() => !assigningTopPerformer && setRankModal(null)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0F0F16] p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border bg-amber-500/10 border-amber-500/20 text-amber-400">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-white tracking-tight">Assign as Top Performer</h3>
+                <p className="mt-1 text-xs text-[#A1A1AA]">
+                  <span className="font-medium text-white">{rankModal.participant.name}</span>
+                  {" · "}
+                  {rankModal.participant.course}
+                  {currentViewEvent ? (
+                    <>
+                      <br />
+                      Event: <span className="text-[#D4D4D8]">{currentViewEvent.name}</span>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitRankAssignment();
+              }}
+              className="mt-4 space-y-3"
+            >
+              <label htmlFor="tp-rank" className="block text-xs font-semibold text-[#D4D4D8]">
+                Rank <span className="text-amber-400">*</span>
+              </label>
+              <input
+                id="tp-rank"
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                autoFocus
+                value={rankModal.rank}
+                onChange={(e) => setRankModal((prev) => (prev ? { ...prev, rank: e.target.value.replace(/\D/g, "") } : prev))}
+                placeholder="e.g. 1"
+                disabled={assigningTopPerformer}
+                className="w-full h-11 rounded-xl border border-white/[0.1] bg-[#09090E] px-3.5 text-sm text-white placeholder:text-[#52525B] focus:border-amber-500 focus:outline-none"
+              />
+              <p className="text-[11px] text-[#71717A]">
+                Rank 1, 2 and 3 map to Gold, Silver and Bronze certificates. Issue the certificate from the Top Performers section after assigning.
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setRankModal(null)}
+                  disabled={assigningTopPerformer}
+                  className="h-10 px-4 rounded-xl text-xs font-semibold text-[#A1A1AA] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assigningTopPerformer || !rankModal.rank.trim()}
+                  className="h-10 px-5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-amber-600 to-amber-500 hover:brightness-110 transition-all cursor-pointer shadow-lg shadow-amber-600/20 flex items-center gap-2 disabled:opacity-45 disabled:cursor-not-allowed"
+                >
+                  {assigningTopPerformer ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trophy className="w-4 h-4" />}
+                  {assigningTopPerformer ? "Assigning…" : "Assign"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

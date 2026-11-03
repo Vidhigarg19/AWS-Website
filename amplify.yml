@@ -6,7 +6,7 @@ frontend:
         - npm ci
     build:
       commands:
-        - env | grep -e NEXT_PUBLIC_ -e BEDROCK_ -e SUPABASE_ -e RESEND_ -e GMAIL_ -e EMAIL_ -e S3_ -e MEDIA_CDN_URL >> .env.production
+        - env | grep -e NEXT_PUBLIC_ -e BEDROCK_ -e SUPABASE_ -e RESEND_ -e GMAIL_ -e EMAIL_ -e S3_ -e MEDIA_CDN_URL -e MEDIA_CDN_DISTRIBUTION_ID -e GOOGLE_DRIVE_API_KEY -e CRON_SECRET >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

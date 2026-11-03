@@ -13,7 +13,11 @@ interface TopPerformerBody {
   email?: unknown;
   rollNo?: unknown;
   course?: unknown;
+  /** Optional: assign to this event. Defaults to the active event when omitted. */
+  eventId?: unknown;
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json(
@@ -185,9 +189,28 @@ export async function POST(request: NextRequest) {
     const admin = getAdminClient();
     if (!admin) return errorResponse("Database client unavailable.", 500);
 
-    const { event, error: eventLookupError } = await getActiveEvent(admin);
-    if (eventLookupError) return errorResponse(eventLookupError, 500);
-    if (!event) return errorResponse("Set an active event before adding top performers.", 400);
+    // Default to the active event; allow an explicit event (e.g. the one being
+    // viewed in the attendee directory) so admins can award past events too.
+    let event: { id: string; name: string; event_date: string | null } | null = null;
+    if (typeof body.eventId === "string" && body.eventId.trim() !== "") {
+      if (!UUID_PATTERN.test(body.eventId)) return errorResponse("Invalid event id.", 400);
+      const { data: chosen, error: chosenError } = await admin
+        .from("events")
+        .select("id, name, event_date")
+        .eq("id", body.eventId.toLowerCase())
+        .maybeSingle();
+      if (chosenError) {
+        console.error("[API/admin/top-performers] Event lookup failed:", chosenError);
+        return errorResponse("Failed to load the event.", 500);
+      }
+      if (!chosen) return errorResponse("The selected event could not be found.", 404);
+      event = chosen;
+    } else {
+      const { event: activeEvent, error: eventLookupError } = await getActiveEvent(admin);
+      if (eventLookupError) return errorResponse(eventLookupError, 500);
+      if (!activeEvent) return errorResponse("Set an active event before adding top performers.", 400);
+      event = activeEvent;
+    }
 
     const { data: participant, error: participantLookupError } = await admin
       .from("participants")

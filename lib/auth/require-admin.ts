@@ -29,7 +29,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ApiResponse } from "@/types/certificate";
 
-export type AdminRole = "super_admin" | "admin" | "media";
+export type AdminRole = "super_admin" | "admin";
 
 export interface AdminSession {
   user: User;
@@ -77,30 +77,17 @@ export async function getAdminSession(): Promise<AdminLookup> {
     return { ok: false, reason: "misconfigured" };
   }
 
-  // Determine user role:
-  // - Explicit role in admin_users ('super_admin', 'admin', 'media', 'media_lead')
-  // - Or fallback if user email / user_metadata designates the media lead account
-  let role: AdminRole | null = null;
-
-  if (data?.role === "media" || data?.role === "media_lead") {
-    role = "media";
-  } else if (data?.role === "super_admin" || data?.role === "admin") {
-    role = data.role as AdminRole;
-  } else if (
-    user.email?.toLowerCase().includes("media") ||
-    user.user_metadata?.role === "media"
-  ) {
-    role = "media";
-  }
-
-  if (!role) {
+  // Only an explicit admin_users row grants admin access. Media-team accounts
+  // live in public.media_members and use requireRole() (require-role.ts).
+  const role = data?.role;
+  if (role !== "super_admin" && role !== "admin") {
     return { ok: false, reason: "forbidden" };
   }
 
   return { ok: true, session: { user, role } };
 }
 
-const FAILURE_RESPONSES: Record<AdminFailure, { status: number; error: string }> = {
+export const FAILURE_RESPONSES: Record<AdminFailure, { status: number; error: string }> = {
   unauthenticated: { status: 401, error: "Authentication required." },
   forbidden: { status: 403, error: "You do not have permission to do this." },
   misconfigured: { status: 500, error: "Server configuration error." },

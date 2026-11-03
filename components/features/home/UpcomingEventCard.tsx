@@ -6,6 +6,7 @@ import Image from "next/image";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { isDriveUrl } from "@/lib/media/drive";
 import {
   Calendar,
   Clock,
@@ -108,7 +109,8 @@ export default function UpcomingEventCard() {
             const mappedPast = past.slice(0, 3).map((item, idx) => ({
               title: item.name,
               date: parseEventDate(item.event_date ?? "").formatted,
-              image: PAST_EVENT_IMAGES[idx % PAST_EVENT_IMAGES.length],
+              // Prefer a real cover uploaded via the Media Portal; fall back to the preset.
+              image: item.cover_url ?? PAST_EVENT_IMAGES[idx % PAST_EVENT_IMAGES.length],
             }));
             setPastEvents(mappedPast);
           } else {
@@ -430,6 +432,8 @@ export default function UpcomingEventCard() {
                       src={item.image}
                       alt={item.title}
                       fill
+                      unoptimized={isDriveUrl(item.image)}
+                      referrerPolicy={isDriveUrl(item.image) ? "no-referrer" : undefined}
                       sizes="(max-width: 640px) 100vw, 33vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     />

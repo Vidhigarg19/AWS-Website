@@ -195,6 +195,7 @@ function EventCard({ event, className }: { event: Event; className?: string }) {
             alt=""
             fill
             unoptimized={isDriveUrl(event.coverUrl)}
+            referrerPolicy={isDriveUrl(event.coverUrl) ? "no-referrer" : undefined}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />

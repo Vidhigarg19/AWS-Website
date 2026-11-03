@@ -214,6 +214,7 @@ export function Gallery({ groups }: { groups: GalleryGroup[] }) {
                         fill
                         sizes="144px"
                         unoptimized={isDriveUrl(cover.thumbUrl)}
+                        referrerPolicy={isDriveUrl(cover.thumbUrl) ? "no-referrer" : undefined}
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     )}

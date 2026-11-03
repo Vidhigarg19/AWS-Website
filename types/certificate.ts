@@ -27,8 +27,6 @@ export interface DbEvent {
   event_timing: string | null;     // Display-oriented, e.g. "11:00 AM - 12:30 PM" or null if TBA
   speaker_name: string | null;
   attendance_open: boolean;
-  poster_url?: string | null;
-  photos?: string[] | null;
   event_type?: string | null;       // Category: "Workshop" | "Hackathon" | "Quiz" | "Event" | custom
   /** CDN URL of the event's cover photo (Media Portal), or null if none has been uploaded. */
   cover_url: string | null;

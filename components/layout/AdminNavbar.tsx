@@ -30,64 +30,21 @@ function AdminNavbarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
-  const [isMediaLead, setIsMediaLead] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLElement>(null);
 
-  // Check role on mount
-  useEffect(() => {
-    const checkRole = async () => {
-      try {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-
-        if (
-          user.email?.toLowerCase().includes("media") ||
-          user.user_metadata?.role === "media"
-        ) {
-          setIsMediaLead(true);
-          setActiveTab("events");
-          return;
-        }
-
-        const { data } = await supabase
-          .from("admin_users")
-          .select("role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (data?.role === "media" || data?.role === "media_lead") {
-          setIsMediaLead(true);
-          setActiveTab("events");
-        }
-      } catch {
-        // fail gracefully
-      }
-    };
-    checkRole();
-  }, []);
-
   // Sync from URL search params
   useEffect(() => {
-    if (isMediaLead) {
-      setActiveTab("events");
-      return;
-    }
     const tab = searchParams.get("tab") as AdminTab | null;
     if (tab && NAV_LINKS.some((l) => l.id === tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams, isMediaLead]);
+  }, [searchParams]);
 
   // Sync from custom window event
   useEffect(() => {
     const handler = (e: Event) => {
-      if (isMediaLead) return;
       const custom = e as CustomEvent<AdminTab>;
       if (custom.detail) {
         setActiveTab(custom.detail);
@@ -95,11 +52,10 @@ function AdminNavbarContent() {
     };
     window.addEventListener("admin-tab-change", handler);
     return () => window.removeEventListener("admin-tab-change", handler);
-  }, [isMediaLead]);
+  }, []);
 
   const handleTabClick = useCallback(
     (tabId: AdminTab) => {
-      if (isMediaLead && tabId !== "events") return;
       setIsMobileNavOpen(false);
       setActiveTab(tabId);
       if (typeof window !== "undefined") {
@@ -110,7 +66,7 @@ function AdminNavbarContent() {
       }
       router.push(`/admin?tab=${tabId}`, { scroll: false });
     },
-    [router, isMediaLead]
+    [router]
   );
 
   useEffect(() => {
@@ -177,7 +133,7 @@ function AdminNavbarContent() {
             aria-label="Admin functions navigation"
             className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full"
           >
-            {(isMediaLead ? NAV_LINKS.filter((l) => l.id === "events") : NAV_LINKS).map((link) => {
+            {NAV_LINKS.map((link) => {
               const Icon = link.icon;
               const isActive = activeTab === link.id;
               return (
@@ -197,11 +153,6 @@ function AdminNavbarContent() {
                 </button>
               );
             })}
-            {isMediaLead && (
-              <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold ml-1 shrink-0">
-                Media Studio
-              </span>
-            )}
           </nav>
         </div>
         <div className="flex lg:hidden h-14 items-center justify-between gap-3 rounded-2xl bg-[#0C0C12]/95 border border-white/10 shadow-lg px-3.5 backdrop-blur-[16px]">
@@ -217,7 +168,7 @@ function AdminNavbarContent() {
             <Menu className="h-5 w-5" aria-hidden="true" />
           </button>
           <span className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white">
-            {isMediaLead ? "Media Studio" : "Admin Portal"}
+            Admin Portal
           </span>
           <button
             type="button"
@@ -249,7 +200,7 @@ function AdminNavbarContent() {
             <div className="mb-5 flex items-center justify-between border-b border-white/[0.08] pb-4">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">
-                  {isMediaLead ? "Media Studio" : "Admin Portal"}
+                  Admin Portal
                 </p>
                 <p className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-[#71717A]">
                   Navigation
@@ -265,7 +216,7 @@ function AdminNavbarContent() {
               </button>
             </div>
             <nav aria-label="Admin functions navigation" className="flex flex-col gap-1.5">
-              {(isMediaLead ? NAV_LINKS.filter((link) => link.id === "events") : NAV_LINKS).map((link) => {
+              {NAV_LINKS.map((link) => {
                 const Icon = link.icon;
                 const isActive = activeTab === link.id;
                 return (

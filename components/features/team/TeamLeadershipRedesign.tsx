@@ -201,6 +201,7 @@ export function TeamLeadershipRedesign() {
             <TeamMascot
               alt="Kio celebrating the AWS Student Builder Group leaders"
               className="object-contain object-bottom"
+              src="/team/kio-holding-trophy.png"
             />
           </div>
           <p className="absolute right-0 top-2 rounded-2xl rounded-br-sm border border-[var(--accent-border)] bg-[var(--surface)] px-4 py-3 text-sm font-medium text-white shadow-xl">
